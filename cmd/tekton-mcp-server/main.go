@@ -51,8 +51,8 @@ func main() {
 	startInformers()
 
 	slog.Info("Adding tools and resources to the server.")
-	tools.Add(s)
-	resources.Add(s)
+	tools.Add(ctx, s)
+	resources.Add(ctx, s)
 
 	slog.Info("Starting the server.")
 	// Start the stdio server
