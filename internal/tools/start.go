@@ -54,7 +54,7 @@ func handlerStartPipeline(ctx context.Context, request mcp.CallToolRequest) (*mc
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:    namespace,
-			GenerateName: fmt.Sprintf("%s-", name),
+			GenerateName: name + "-",
 		},
 		Spec: v1.PipelineRunSpec{
 			PipelineRef: &v1.PipelineRef{
@@ -111,7 +111,7 @@ func handlerStartTask(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:    namespace,
-			GenerateName: fmt.Sprintf("%s-", name),
+			GenerateName: name + "-",
 		},
 		Spec: v1.TaskRunSpec{
 			TaskRef: &v1.TaskRef{
