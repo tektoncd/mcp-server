@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 
 	"github.com/mark3labs/mcp-go/server"
@@ -19,6 +22,17 @@ import (
 const ManagedByLabelKey = "app.kubernetes.io/managed-by"
 
 func main() {
+	var transport string
+	var sseAddr string
+	flag.StringVar(&transport, "transport", "stdio", "Transport type (stdio or sse)")
+	flag.StringVar(&sseAddr, "address", "", "Address to bind the SSE server to")
+	flag.Parse()
+
+	if sseAddr == "" && transport == "sse" {
+		slog.Error("-address is required when transport is set to 'sse'")
+		os.Exit(1)
+	}
+
 	// Create MCP server
 	s := server.NewMCPServer(
 		"Tekton",
@@ -55,18 +69,27 @@ func main() {
 	resources.Add(ctx, s)
 
 	slog.Info("Starting the server.")
-	// Start the stdio server
-	stdioServer := server.NewStdioServer(s)
-	// Start listening for messages
+
 	errC := make(chan error, 1)
-	go func() {
-		in, out := io.Reader(os.Stdin), io.Writer(os.Stdout)
 
-		errC <- stdioServer.Listen(ctx, in, out)
-	}()
-
-	// Output tekton-mcp string
-	_, _ = fmt.Fprintf(os.Stderr, "Tekton MCP Server running on stdio\n")
+	switch transport {
+	case "sse":
+		sseServer := server.NewSSEServer(s, server.WithSSEContextFunc(func(_ context.Context, r *http.Request) context.Context { return ctx }))
+		go func() {
+			errC <- sseServer.Start(sseAddr)
+		}()
+		slog.Info("Tekton MCP Server is listening at " + sseAddr)
+	case "stdio":
+		stdioServer := server.NewStdioServer(s)
+		go func() {
+			in, out := io.Reader(os.Stdin), io.Writer(os.Stdout)
+			errC <- stdioServer.Listen(ctx, in, out)
+		}()
+		_, _ = fmt.Fprintf(os.Stderr, "Tekton MCP Server running on stdio\n")
+	default:
+		slog.Error(fmt.Sprintf("Invalid transport %q; must be sse or stdio", transport))
+		os.Exit(1)
+	}
 
 	// Wait for shutdown signal
 	select {
