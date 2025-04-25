@@ -6,7 +6,7 @@ require (
 	github.com/mark3labs/mcp-go v0.23.1
 	github.com/tektoncd/pipeline v0.70.0
 	k8s.io/apimachinery v0.32.4
-	k8s.io/client-go v0.32.2
+	k8s.io/client-go v0.32.4
 	knative.dev/pkg v0.0.0-20250421155937-757c99c8c03f
 )
 
@@ -81,7 +81,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.32.2 // indirect
+	k8s.io/api v0.32.4 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20241212222426-2c72e554b1e7 // indirect
 	k8s.io/utils v0.0.0-20241210054802-24370beab758 // indirect
