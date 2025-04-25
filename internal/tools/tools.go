@@ -11,6 +11,8 @@ func Add(_ context.Context, s *server.MCPServer) {
 	s.AddTools(
 		startPipeline(),
 		startTask(),
+		restartPipelineRun(),
+		restartTaskRun(),
 		listPipelineRuns(),
 		listPipelines(),
 		listTaskRuns(),
