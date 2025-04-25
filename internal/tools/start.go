@@ -18,7 +18,7 @@ func startPipeline() server.ServerTool {
 		Tool: mcp.NewTool("start_pipeline",
 			mcp.WithDescription("Start a Pipeline"),
 			mcp.WithString("name", mcp.Required(),
-				mcp.Description("Name or Reference of the Pipeline to sart"),
+				mcp.Description("Name or Reference of the Pipeline to start"),
 			),
 			mcp.WithString("namespace",
 				mcp.Description("Namespace where the Pipeline is located"),
@@ -33,7 +33,7 @@ func startPipeline() server.ServerTool {
 func handlerStartPipeline(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	name, ok := request.Params.Arguments["name"].(string)
 	if !ok {
-		return mcp.NewToolResultError("namespace must be a string"), nil
+		return mcp.NewToolResultError("name must be a string"), nil
 	}
 	namespace, ok := request.Params.Arguments["namespace"].(string)
 	if !ok {
@@ -75,7 +75,7 @@ func startTask() server.ServerTool {
 		Tool: mcp.NewTool("start_task",
 			mcp.WithDescription("Start a Task"),
 			mcp.WithString("name", mcp.Required(),
-				mcp.Description("Name or Reference of the Task to sart"),
+				mcp.Description("Name or Reference of the Task to start"),
 			),
 			mcp.WithString("namespace",
 				mcp.Description("Namespace where the Task is located"),
@@ -90,7 +90,7 @@ func startTask() server.ServerTool {
 func handlerStartTask(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	name, ok := request.Params.Arguments["name"].(string)
 	if !ok {
-		return mcp.NewToolResultError("namespace must be a string"), nil
+		return mcp.NewToolResultError("name must be a string"), nil
 	}
 	namespace, ok := request.Params.Arguments["namespace"].(string)
 	if !ok {
