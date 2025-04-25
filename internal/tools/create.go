@@ -14,58 +14,10 @@ import (
 
 func createTask() server.ServerTool {
 	return server.ServerTool{
-		Tool: mcp.NewTool("create_task",
-			mcp.WithDescription("Create a Task"),
-			mcp.WithObject("task", mcp.Properties(map[string]any{
-				"metadata": map[string]any{
-					"name": map[string]any{
-						"type":        "string",
-						"description": "task name",
-						"required":    true,
-					},
-					"namespace": map[string]any{
-						"type":        "string",
-						"description": "task namespace",
-						"required":    true,
-					},
-				},
-				// TODO: labels, annotations
-				"spec": map[string]any{
-					"steps": map[string]any{
-						"type":        "array",
-						"description": "Steps to execute in this Task",
-						"items": map[string]any{
-							"type": "object",
-							"properties": map[string]any{
-								"name": map[string]any{
-									"type":        "string",
-									"description": "Name of the step",
-								},
-								"image": map[string]any{
-									"type":        "string",
-									"description": "Container image to use",
-								},
-								"command": map[string]any{
-									"type":        "array",
-									"description": "Command to execute",
-									"items": map[string]any{
-										"type": "string",
-									},
-								},
-								"args": map[string]any{
-									"type":        "array",
-									"description": "Arguments to the command",
-									"items": map[string]any{
-										"type": "string",
-									},
-								},
-							},
-							"required": []string{"name", "image"},
-						},
-					},
-				},
-			}), mcp.Required()),
-		),
+		Tool: mcp.NewToolWithRawSchema(
+			"create_task",
+			"Create a task",
+			json.RawMessage(getSchemaForType("github.com/tektoncd/pipeline/pkg/apis/pipeline/v1.Task"))),
 		Handler: handlerCreateTask,
 	}
 }
