@@ -1,0 +1,17 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tekton-mcp-server
+  labels:
+    app.kubernetes.io/component: mcp-server
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-mcp
+rules:
+  # Access to Tekton resources
+  - apiGroups: ["tekton.dev"]
+    resources: ["tasks", "pipelines", "taskruns", "pipelineruns"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Access to kubernetes resources
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]

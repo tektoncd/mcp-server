@@ -1,0 +1,16 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-mcp-server
+  labels:
+    app.kubernetes.io/component: mcp-server
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/part-of: tekton-mcp
+subjects:
+  - kind: ServiceAccount
+    name: tekton-mcp-server
+    namespace: tekton-mcp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-mcp-server
