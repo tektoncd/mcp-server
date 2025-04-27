@@ -9,16 +9,19 @@ import (
 )
 
 func getSchemaForType(name string) string {
-	openapiDefinitions := v1.GetOpenAPIDefinitions(
+	return getSchemaForTypeWithDefinitions(name, v1.GetOpenAPIDefinitions(
 		func(path string) spec.Ref {
 			return spec.MustCreateRef(path)
 		},
-	)
-	definition, ok := openapiDefinitions[name]
+	))
+}
+
+func getSchemaForTypeWithDefinitions(name string, definitions map[string]common.OpenAPIDefinition) string {
+	definition, ok := definitions[name]
 	if !ok {
 		return ""
 	}
-	resolvedDefinition := resolveReferences(definition.Schema, openapiDefinitions)
+	resolvedDefinition := resolveReferences(definition.Schema, definitions)
 	data, _ := json.Marshal(resolvedDefinition)
 	return string(data)
 }
@@ -28,12 +31,17 @@ func resolveReferences(schema spec.Schema, definitions map[string]common.OpenAPI
 		for name, prop := range schema.Properties {
 			schema.Properties[name] = resolveReferences(prop, definitions)
 		}
-	} else if schema.Type.Contains("array") {
-		resolvedSchemas := make([]spec.Schema, 0)
-		for _, sch := range schema.Items.Schemas {
-			resolvedSchemas = append(resolvedSchemas, resolveReferences(sch, definitions))
+	}
+	if schema.Type.Contains("array") {
+		if schema.Items.Len() == 1 {
+			*schema.Items.Schema = resolveReferences(*schema.Items.Schema, definitions)
+		} else {
+			resolvedSchemas := make([]spec.Schema, 0)
+			for _, sch := range schema.Items.Schemas {
+				resolvedSchemas = append(resolvedSchemas, resolveReferences(sch, definitions))
+			}
+			schema.Items.Schemas = resolvedSchemas
 		}
-		schema.Items.Schemas = resolvedSchemas
 	}
 	if path := schema.Ref.String(); path != "" {
 		definition := definitions[path]
