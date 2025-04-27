@@ -10,6 +10,8 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/tektoncd/mcp-server/internal/params"
+	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	pipelineinformer "github.com/tektoncd/pipeline/pkg/client/injection/informers/pipeline/v1/pipeline"
 	pipelineruninformer "github.com/tektoncd/pipeline/pkg/client/injection/informers/pipeline/v1/pipelinerun"
 	taskinformer "github.com/tektoncd/pipeline/pkg/client/injection/informers/pipeline/v1/task"
@@ -23,7 +25,7 @@ func Add(ctx context.Context, s *server.MCPServer) {
 
 func pipelineRunResources(ctx context.Context) (mcp.ResourceTemplate, server.ResourceTemplateHandlerFunc) {
 	return mcp.NewResourceTemplate(
-		"tekton://pipelinerun/{namespace}/{name}",
+		"tekton://pipelinerun/{namespace}/{name}?params={params}",
 		"PipelineRun",
 	), pipelineRunHandler(ctx)
 }
@@ -42,17 +44,22 @@ func pipelineRunHandler(ctx context.Context) server.ResourceTemplateHandlerFunc 
 		}
 		name := n[0]
 
+		// Extract parameters if they exist
+		pipelineParams, err := params.ExtractPipelineRunParams(request)
+		if err != nil {
+			slog.Warn(fmt.Sprintf("Error extracting parameters: %v", err))
+		}
+
 		uri := request.Params.URI
 		resourceType := strings.Split(uri, "/")[2]
 
 		var jsonData []byte
-		var err error
 
 		slog.Info(fmt.Sprintf("Resource: %s, %s/%s", resourceType, namespace, name))
 
 		switch resourceType {
 		case "pipelinerun":
-			jsonData, err = getPipelineRun(ctx, namespace, name)
+			jsonData, err = getPipelineRun(ctx, namespace, name, pipelineParams)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get PipelineRun %s/%s: %w", namespace, name, err)
 			}
@@ -88,12 +95,25 @@ func pipelineRunHandler(ctx context.Context) server.ResourceTemplateHandlerFunc 
 	}
 }
 
-func getPipelineRun(ctx context.Context, namespace string, name string) ([]byte, error) {
+func getPipelineRun(ctx context.Context, namespace string, name string, pipelineParams []pipelinev1.Param) ([]byte, error) {
 	pipelineRunInformer := pipelineruninformer.Get(ctx)
 	pipelineRun, err := pipelineRunInformer.Lister().PipelineRuns(namespace).Get(name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get PipelineRun %s/%s: %w", namespace, name, err)
 	}
+
+	// If parameters were provided, include them in the response
+	if len(pipelineParams) > 0 {
+		// Create a copy of the PipelineRun to avoid modifying the cached object
+		pipelineRunCopy := pipelineRun.DeepCopy()
+
+		// Add or merge the provided parameters with existing ones
+		pipelineRunCopy.Spec.Params = params.MergeParams(pipelineRunCopy.Spec.Params, pipelineParams)
+
+		// Use the modified PipelineRun for the JSON response
+		pipelineRun = pipelineRunCopy
+	}
+
 	slog.Info(fmt.Sprintf("PipelineRun %s: %v", pipelineRun.Name, pipelineRun))
 
 	jsonData, err := json.Marshal(pipelineRun)
