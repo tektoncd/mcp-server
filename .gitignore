@@ -13,6 +13,7 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+coverage.html
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
@@ -23,5 +24,8 @@ go.work.sum
 
 # env file
 .env
+
+#  idea goland project config
+.idea/
 
 /tekton-mcp-server
