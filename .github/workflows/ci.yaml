@@ -68,6 +68,39 @@ jobs:
     - name: unit
       run: |
         go test -v -race -timeout 5m ./...
+    - name: Run tests with coverage
+      run: |
+        make test-unit-coverage
+    - name: Post coverage comment
+      run: |
+        TOTAL_COV=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+        echo "Total test coverage: $TOTAL_COV"
+        echo "COVERAGE=$TOTAL_COV" >> $GITHUB_ENV
+        
+        # Create a comment for the PR
+        echo "## Test Coverage Report" > coverage_comment.md
+        echo "Total coverage: $TOTAL_COV" >> coverage_comment.md
+        echo "" >> coverage_comment.md
+        echo "### Coverage by Package" >> coverage_comment.md
+        echo '```' >> coverage_comment.md
+        go tool cover -func=coverage.out | grep -v "total:" >> coverage_comment.md
+        echo '```' >> coverage_comment.md
+        
+    - name: Find Comment
+      uses: peter-evans/find-comment@v3
+      id: find-comment
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        comment-author: 'github-actions[bot]'
+        body-includes: "## Test Coverage Report"
+        
+    - name: Create or update coverage comment
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        comment-id: ${{ steps.find-comment.outputs.comment-id }}
+        issue-number: ${{ github.event.pull_request.number }}
+        body-file: coverage_comment.md
+        edit-mode: replace
   # e2e-tests:
   #   needs: [build]
   #   uses: ./.github/workflows/e2e-matrix.yml
