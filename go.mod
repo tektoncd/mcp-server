@@ -3,7 +3,7 @@ module github.com/tektoncd/mcp-server
 go 1.24
 
 require (
-	github.com/mark3labs/mcp-go v0.23.1
+	github.com/mark3labs/mcp-go v0.24.1
 	github.com/tektoncd/pipeline v0.70.0
 	k8s.io/apimachinery v0.32.4
 	k8s.io/client-go v0.32.4
