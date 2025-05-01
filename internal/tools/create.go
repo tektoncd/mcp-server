@@ -23,14 +23,18 @@ func createTask() server.ServerTool {
 }
 
 func handlerCreateTask(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	data, err := json.Marshal(request.Params.Arguments["task"])
+	data, err := json.Marshal(request.Params.Arguments)
 	if err != nil {
 		return mcp.NewToolResultErrorFromErr("Failed to marshal request params", err), nil
 	}
 
 	var task v1.Task
 	if err = json.Unmarshal(data, &task); err != nil {
-		return mcp.NewToolResultErrorFromErr("Failed to unmarshal request params", err), nil
+		return mcp.NewToolResultErrorFromErr("Failed to unmarshal request into a Task", err), nil
+	}
+
+	if task.ObjectMeta.Namespace == "" {
+		task.ObjectMeta.Namespace = "default"
 	}
 
 	pipelineclientset := pipelineclient.Get(ctx)
