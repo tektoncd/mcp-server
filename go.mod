@@ -4,7 +4,7 @@ go 1.24
 
 require (
 	github.com/mark3labs/mcp-go v0.24.1
-	github.com/tektoncd/pipeline v0.70.0
+	github.com/tektoncd/pipeline v1.0.0
 	k8s.io/apimachinery v0.32.4
 	k8s.io/client-go v0.32.4
 	knative.dev/pkg v0.0.0-20250421155937-757c99c8c03f
@@ -57,7 +57,7 @@ require (
 	github.com/prometheus/statsd_exporter v0.22.7 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	github.com/stoewer/go-strcase v1.2.0 // indirect
+	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
@@ -65,7 +65,7 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac // indirect
 	golang.org/x/net v0.39.0 // indirect
-	golang.org/x/oauth2 v0.26.0 // indirect
+	golang.org/x/oauth2 v0.29.0 // indirect
 	golang.org/x/sync v0.13.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/term v0.31.0 // indirect
