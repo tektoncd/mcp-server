@@ -28,6 +28,7 @@ type sseSession struct {
 	requestID           atomic.Int64
 	notificationChannel chan mcp.JSONRPCNotification
 	initialized         atomic.Bool
+	tools               sync.Map // stores session-specific tools
 }
 
 // SSEContextFunc is a function that takes an existing context and the current
@@ -58,7 +59,34 @@ func (s *sseSession) Initialized() bool {
 	return s.initialized.Load()
 }
 
-var _ ClientSession = (*sseSession)(nil)
+func (s *sseSession) GetSessionTools() map[string]ServerTool {
+	tools := make(map[string]ServerTool)
+	s.tools.Range(func(key, value interface{}) bool {
+		if tool, ok := value.(ServerTool); ok {
+			tools[key.(string)] = tool
+		}
+		return true
+	})
+	return tools
+}
+
+func (s *sseSession) SetSessionTools(tools map[string]ServerTool) {
+	// Clear existing tools
+	s.tools.Range(func(key, _ interface{}) bool {
+		s.tools.Delete(key)
+		return true
+	})
+
+	// Set new tools
+	for name, tool := range tools {
+		s.tools.Store(name, tool)
+	}
+}
+
+var (
+	_ ClientSession    = (*sseSession)(nil)
+	_ SessionWithTools = (*sseSession)(nil)
+)
 
 // SSEServer implements a Server-Sent Events (SSE) based MCP server.
 // It provides real-time communication capabilities over HTTP using the SSE protocol.
@@ -107,11 +135,20 @@ func WithBaseURL(baseURL string) SSEOption {
 	}
 }
 
-// WithBasePath adds a new option for setting a static base path
-func WithBasePath(basePath string) SSEOption {
+// WithStaticBasePath adds a new option for setting a static base path
+func WithStaticBasePath(basePath string) SSEOption {
 	return func(s *SSEServer) {
 		s.basePath = normalizeURLPath(basePath)
 	}
+}
+
+// WithBasePath adds a new option for setting a static base path.
+//
+// Deprecated: Use WithStaticBasePath instead. This will be removed in a future version.
+//
+//go:deprecated
+func WithBasePath(basePath string) SSEOption {
+	return WithStaticBasePath(basePath)
 }
 
 // WithDynamicBasePath accepts a function for generating the base path. This is
@@ -339,7 +376,12 @@ func (s *SSEServer) handleSSE(w http.ResponseWriter, r *http.Request) {
 					}
 					messageBytes, _ := json.Marshal(message)
 					pingMsg := fmt.Sprintf("event: message\ndata:%s\n\n", messageBytes)
-					session.eventQueue <- pingMsg
+					select {
+					case session.eventQueue <- pingMsg:
+						// Message sent successfully
+					case <-session.done:
+						return
+					}
 				case <-session.done:
 					return
 				case <-r.Context().Done():
@@ -423,13 +465,21 @@ func (s *SSEServer) handleMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create a context that preserves all values from parent ctx but won't be canceled when the parent is canceled.
+	// this is required because the http ctx will be canceled when the client disconnects
+	detachedCtx := context.WithoutCancel(ctx)
+
 	// quick return request, send 202 Accepted with no body, then deal the message and sent response via SSE
 	w.WriteHeader(http.StatusAccepted)
 
-	go func() {
+	// Create a new context for handling the message that will be canceled when the message handling is done
+	messageCtx, cancel := context.WithCancel(detachedCtx)
+
+	go func(ctx context.Context) {
+		defer cancel()
+		// Use the context that will be canceled when session is done
 		// Process message through MCPServer
 		response := s.server.HandleMessage(ctx, rawMessage)
-
 		// Only send response if there is one (not for notifications)
 		if response != nil {
 			var message string
@@ -437,7 +487,6 @@ func (s *SSEServer) handleMessage(w http.ResponseWriter, r *http.Request) {
 				// If there is an error marshalling the response, send a generic error response
 				log.Printf("failed to marshal response: %v", err)
 				message = fmt.Sprintf("event: message\ndata: {\"error\": \"internal error\",\"jsonrpc\": \"2.0\", \"id\": null}\n\n")
-				return
 			} else {
 				message = fmt.Sprintf("event: message\ndata: %s\n\n", eventData)
 			}
@@ -453,7 +502,7 @@ func (s *SSEServer) handleMessage(w http.ResponseWriter, r *http.Request) {
 				log.Printf("Event queue full for session %s", sessionID)
 			}
 		}
-	}()
+	}(messageCtx)
 }
 
 // writeJSONRPCError writes a JSON-RPC error response with the given error details.
