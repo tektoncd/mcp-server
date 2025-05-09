@@ -19,6 +19,7 @@ import (
 )
 
 // ManagedByLabelKey is the label key used to mark what is managing this resource
+// adding test
 const ManagedByLabelKey = "app.kubernetes.io/managed-by"
 
 func main() {
