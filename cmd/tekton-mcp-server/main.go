@@ -12,6 +12,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/tektoncd/mcp-server/internal/resources"
 	"github.com/tektoncd/mcp-server/internal/tools"
+	"github.com/tektoncd/mcp-server/internal/version"
 	"k8s.io/client-go/tools/clientcmd"
 	filteredinformerfactory "knative.dev/pkg/client/injection/kube/informers/factory/filtered"
 	"knative.dev/pkg/injection"
@@ -36,7 +37,7 @@ func main() {
 	// Create MCP server
 	s := server.NewMCPServer(
 		"Tekton",
-		"0.0.1", // FIXME get this from internal package
+		version.Version,
 		server.WithResourceCapabilities(true, true),
 		server.WithPromptCapabilities(true),
 		server.WithToolCapabilities(true),
