@@ -1,0 +1,3 @@
+defaultBaseImage: gcr.io/distroless/static:nonroot
+baseImageOverrides:
+  github.com/tektoncd/mcp-server: gcr.io/distroless/static:nonroot
