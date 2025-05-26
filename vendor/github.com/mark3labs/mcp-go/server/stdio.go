@@ -53,6 +53,8 @@ func WithStdioContextFunc(fn StdioContextFunc) StdioOption {
 type stdioSession struct {
 	notifications chan mcp.JSONRPCNotification
 	initialized   atomic.Bool
+	loggingLevel  atomic.Value
+	clientInfo    atomic.Value // stores session-specific client info
 }
 
 func (s *stdioSession) SessionID() string {
@@ -64,6 +66,8 @@ func (s *stdioSession) NotificationChannel() chan<- mcp.JSONRPCNotification {
 }
 
 func (s *stdioSession) Initialize() {
+	// set default logging level
+	s.loggingLevel.Store(mcp.LoggingLevelError)
 	s.initialized.Store(true)
 }
 
@@ -71,7 +75,36 @@ func (s *stdioSession) Initialized() bool {
 	return s.initialized.Load()
 }
 
-var _ ClientSession = (*stdioSession)(nil)
+func (s *stdioSession) GetClientInfo() mcp.Implementation {
+	if value := s.clientInfo.Load(); value != nil {
+		if clientInfo, ok := value.(mcp.Implementation); ok {
+			return clientInfo
+		}
+	}
+	return mcp.Implementation{}
+}
+
+func (s *stdioSession) SetClientInfo(clientInfo mcp.Implementation) {
+	s.clientInfo.Store(clientInfo)
+}
+
+func (s *stdioSession) SetLogLevel(level mcp.LoggingLevel) {
+	s.loggingLevel.Store(level)
+}
+
+func (s *stdioSession) GetLogLevel() mcp.LoggingLevel {
+	level := s.loggingLevel.Load()
+	if level == nil {
+		return mcp.LoggingLevelError
+	}
+	return level.(mcp.LoggingLevel)
+}
+
+var (
+	_ ClientSession         = (*stdioSession)(nil)
+	_ SessionWithLogging    = (*stdioSession)(nil)
+	_ SessionWithClientInfo = (*stdioSession)(nil)
+)
 
 var stdioSessionInstance = stdioSession{
 	notifications: make(chan mcp.JSONRPCNotification, 100),
@@ -171,7 +204,6 @@ func (s *StdioServer) readNextLine(ctx context.Context, reader *bufio.Reader) (s
 				select {
 				case errChan <- err:
 				case <-done:
-
 				}
 				return
 			}
@@ -179,6 +211,7 @@ func (s *StdioServer) readNextLine(ctx context.Context, reader *bufio.Reader) (s
 			case readChan <- line:
 			case <-done:
 			}
+			return
 		}
 	}()
 
@@ -271,7 +304,6 @@ func (s *StdioServer) writeResponse(
 // Returns an error if the server encounters any issues during operation.
 func ServeStdio(server *MCPServer, opts ...StdioOption) error {
 	s := NewStdioServer(server)
-	s.SetErrorLogger(log.New(os.Stderr, "", log.LstdFlags))
 
 	for _, opt := range opts {
 		opt(s)
