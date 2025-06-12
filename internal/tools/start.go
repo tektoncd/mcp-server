@@ -31,11 +31,11 @@ func startPipeline() server.ServerTool {
 }
 
 func handlerStartPipeline(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name, ok := request.Params.Arguments["name"].(string)
+	name, ok := request.GetArguments()["name"].(string)
 	if !ok {
 		return mcp.NewToolResultError("name must be a string"), nil
 	}
-	namespace, ok := request.Params.Arguments["namespace"].(string)
+	namespace, ok := request.GetArguments()["namespace"].(string)
 	if !ok {
 		return mcp.NewToolResultError("namespace must be a string"), nil
 	}
@@ -88,11 +88,11 @@ func startTask() server.ServerTool {
 }
 
 func handlerStartTask(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name, ok := request.Params.Arguments["name"].(string)
+	name, ok := request.GetArguments()["name"].(string)
 	if !ok {
 		return mcp.NewToolResultError("name must be a string"), nil
 	}
-	namespace, ok := request.Params.Arguments["namespace"].(string)
+	namespace, ok := request.GetArguments()["namespace"].(string)
 	if !ok {
 		return mcp.NewToolResultError("namespace must be a string"), nil
 	}

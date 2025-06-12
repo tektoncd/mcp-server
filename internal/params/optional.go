@@ -14,14 +14,14 @@ func Optional[T any](r mcp.CallToolRequest, p string) (T, error) {
 	var zero T
 
 	// Check if the parameter is present in the request
-	if _, ok := r.Params.Arguments[p]; !ok {
+	if _, ok := r.GetArguments()[p]; !ok {
 		return zero, nil
 	}
 
 	// Check if the parameter is of the expected type
-	if _, ok := r.Params.Arguments[p].(T); !ok {
-		return zero, fmt.Errorf("parameter %s is not of type %T, is %T", p, zero, r.Params.Arguments[p])
+	if _, ok := r.GetArguments()[p].(T); !ok {
+		return zero, fmt.Errorf("parameter %s is not of type %T, is %T", p, zero, r.GetArguments()[p])
 	}
 
-	return r.Params.Arguments[p].(T), nil
+	return r.GetArguments()[p].(T), nil
 }
