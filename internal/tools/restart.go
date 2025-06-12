@@ -32,7 +32,7 @@ func restartPipelineRun() server.ServerTool {
 }
 
 func handlerRestartPipelineRun(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name := request.Params.Arguments["name"].(string)
+	name := request.GetArguments()["name"].(string)
 	namespace, err := params.Optional[string](request, "namespace")
 	if err != nil {
 		return mcp.NewToolResultErrorFromErr("namespace must be a string", err), nil
@@ -87,7 +87,7 @@ func restartTaskRun() server.ServerTool {
 }
 
 func handlerRestartTaskRun(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name := request.Params.Arguments["name"].(string)
+	name := request.GetArguments()["name"].(string)
 	namespace, err := params.Optional[string](request, "namespace")
 	if err != nil {
 		return mcp.NewToolResultErrorFromErr("namespace must be a string", err), nil
