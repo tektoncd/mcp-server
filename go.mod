@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/mark3labs/mcp-go v0.32.0
 	github.com/tektoncd/pipeline v1.1.0
-	k8s.io/apimachinery v0.32.5
+	k8s.io/apimachinery v0.32.6
 	k8s.io/client-go v0.32.5
 	knative.dev/pkg v0.0.0-20250421155937-757c99c8c03f
 )
