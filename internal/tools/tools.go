@@ -13,6 +13,7 @@ func Add(_ context.Context, s *server.MCPServer) {
 		startTask(),
 		restartPipelineRun(),
 		restartTaskRun(),
+		createTask(),
 		listPipelineRuns(),
 		listPipelines(),
 		listTaskRuns(),
