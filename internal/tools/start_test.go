@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	ttesting "github.com/tektoncd/pipeline/pkg/reconciler/testing"
 	"github.com/tektoncd/pipeline/test"
@@ -26,12 +26,14 @@ func TestHandlerStartPipeline(t *testing.T) {
 	ctx, _ := ttesting.SetupFakeContext(t)
 	_, _ = test.SeedTestData(t, ctx, data)
 
-	request := newCallToolRequest(map[string]any{"name": "hello-world", "namespace": "default"})
-	response, err := handlerStartPipeline(ctx, request)
+	request := &mcp.CallToolParamsFor[startParams]{
+		Arguments: startParams{Name: "hello-world", Namespace: "default"},
+	}
+	response, err := handlerStartPipeline(ctx, nil, request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	content, _ := mcp.AsTextContent(response.Content[0])
+	content, _ := response.Content[0].(*mcp.TextContent)
 	if !strings.HasPrefix(content.Text, "Starting pipeline") {
 		t.Fatalf("invalid resposne: %v", content)
 	}
@@ -52,12 +54,14 @@ func TestHandlerStartTask(t *testing.T) {
 	ctx, _ := ttesting.SetupFakeContext(t)
 	_, _ = test.SeedTestData(t, ctx, data)
 
-	request := newCallToolRequest(map[string]any{"name": "hello-world", "namespace": "default"})
-	response, err := handlerStartTask(ctx, request)
+	request := &mcp.CallToolParamsFor[startParams]{
+		Arguments: startParams{Name: "hello-world", Namespace: "default"},
+	}
+	response, err := handlerStartTask(ctx, nil, request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	content, _ := mcp.AsTextContent(response.Content[0])
+	content, _ := response.Content[0].(*mcp.TextContent)
 	if !strings.HasPrefix(content.Text, "Starting task") {
 		t.Fatalf("invalid resposne: %v", content)
 	}

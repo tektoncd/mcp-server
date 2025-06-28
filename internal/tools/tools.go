@@ -3,11 +3,10 @@ package tools
 import (
 	"context"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func Add(_ context.Context, s *server.MCPServer) {
+func Add(_ context.Context, s *mcp.Server) {
 	s.AddTools(
 		startPipeline(),
 		startTask(),
@@ -22,10 +21,8 @@ func Add(_ context.Context, s *server.MCPServer) {
 	)
 }
 
-func result(s string) *mcp.CallToolResult {
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			mcp.NewTextContent(s),
-		},
+func result(s string) *mcp.CallToolResultFor[string] {
+	return &mcp.CallToolResultFor[string]{
+		Content: []mcp.Content{&mcp.TextContent{Text: s}},
 	}
 }
