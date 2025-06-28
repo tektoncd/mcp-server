@@ -2,11 +2,11 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
-	"github.com/tektoncd/mcp-server/internal/params"
+	"github.com/modelcontextprotocol/go-sdk/jsonschema"
+	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	pipelineclient "github.com/tektoncd/pipeline/pkg/client/injection/client"
 	pipelineruninformer "github.com/tektoncd/pipeline/pkg/client/injection/informers/pipeline/v1/pipelinerun"
@@ -14,36 +14,47 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func restartPipelineRun() server.ServerTool {
-	return server.ServerTool{
-		Tool: mcp.NewTool("restart_pipelinerun",
-			mcp.WithDescription("Restart a PipelineRun"),
-			mcp.WithString("name", mcp.Required(),
-				mcp.Description("Name or Reference of the PipelineRun to restart"),
-			),
-			mcp.WithString("namespace",
-				mcp.Description("Namespace where the PipelineRun is located"),
-				mcp.DefaultString("default"),
-			),
-			// TODO add "parameters" objects
-		),
-		Handler: handlerRestartPipelineRun,
-	}
+type restartParams struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
 }
 
-func handlerRestartPipelineRun(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name := request.GetArguments()["name"].(string)
-	namespace, err := params.Optional[string](request, "namespace")
+func restartSchema() mcp.ToolOption {
+	scheme, err := jsonschema.For[restartParams]()
 	if err != nil {
-		return mcp.NewToolResultErrorFromErr("namespace must be a string", err), nil
+		panic(err)
 	}
+
+	scheme.Properties["name"].Description = "Name or referece of the object"
+	scheme.Properties["namespace"].Description = "Namespace of the object"
+	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
+
+	return mcp.Input(mcp.Schema(scheme))
+}
+
+func restartPipelineRun() *mcp.ServerTool {
+	return mcp.NewServerTool(
+		"restart_pipelinerun",
+		"Restart a PipelineRun",
+		handlerRestartPipelineRun,
+		restartSchema(),
+	)
+}
+
+func handlerRestartPipelineRun(
+	ctx context.Context,
+	cc *mcp.ServerSession,
+	params *mcp.CallToolParamsFor[restartParams],
+) (*mcp.CallToolResultFor[string], error) {
+	name := params.Arguments.Name
+	namespace := params.Arguments.Namespace
 
 	pipelinerunInformer := pipelineruninformer.Get(ctx)
 	pipelineclientset := pipelineclient.Get(ctx)
 
 	usepr, err := pipelinerunInformer.Lister().PipelineRuns(namespace).Get(name)
 	if err != nil {
-		return mcp.NewToolResultErrorFromErr(fmt.Sprintf("Failed to get PipelineRun %s/%s", namespace, name), err), nil
+		return nil, fmt.Errorf("failed to get PipelineRun %s/%s: %w", namespace, name, err)
 	}
 	pr := &v1.PipelineRun{
 		TypeMeta: metav1.TypeMeta{
@@ -63,42 +74,35 @@ func handlerRestartPipelineRun(ctx context.Context, request mcp.CallToolRequest)
 
 	pr, err = pipelineclientset.TektonV1().PipelineRuns(namespace).Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
-		return mcp.NewToolResultErrorFromErr(fmt.Sprintf("Failed to create PipelineRun %s/%s", namespace, pr.ObjectMeta.Name), err), nil
+		return nil, fmt.Errorf("failed to create PipelineRun %s/%s: %w", namespace, pr.ObjectMeta.Name, err)
 	}
 
 	return result(fmt.Sprintf("Restarting pipelinerun %s as %s in namespace %s", name, pr.ObjectMeta.Name, namespace)), nil
 }
 
-func restartTaskRun() server.ServerTool {
-	return server.ServerTool{
-		Tool: mcp.NewTool("restart_taskrun",
-			mcp.WithDescription("Restart a TaskRun"),
-			mcp.WithString("name", mcp.Required(),
-				mcp.Description("Name or Reference of the TaskRun to restart"),
-			),
-			mcp.WithString("namespace",
-				mcp.Description("Namespace where the TaskRun is located"),
-				mcp.DefaultString("default"),
-			),
-			// TODO add "parameters" objects
-		),
-		Handler: handlerRestartTaskRun,
-	}
+func restartTaskRun() *mcp.ServerTool {
+	return mcp.NewServerTool(
+		"restart_taskrun",
+		"Restart a TaskRun",
+		handlerRestartTaskRun,
+		restartSchema(),
+	)
 }
 
-func handlerRestartTaskRun(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name := request.GetArguments()["name"].(string)
-	namespace, err := params.Optional[string](request, "namespace")
-	if err != nil {
-		return mcp.NewToolResultErrorFromErr("namespace must be a string", err), nil
-	}
+func handlerRestartTaskRun(
+	ctx context.Context,
+	cc *mcp.ServerSession,
+	params *mcp.CallToolParamsFor[restartParams],
+) (*mcp.CallToolResultFor[string], error) {
+	name := params.Arguments.Name
+	namespace := params.Arguments.Namespace
 
 	taskrunInformer := taskruninformer.Get(ctx)
 	pipelineclientset := pipelineclient.Get(ctx)
 
 	usetr, err := taskrunInformer.Lister().TaskRuns(namespace).Get(name)
 	if err != nil {
-		return mcp.NewToolResultErrorFromErr(fmt.Sprintf("Failed to get TaskRun %s/%s", namespace, name), err), nil
+		return nil, fmt.Errorf("failed to get TaskRun %s/%s: %w", namespace, name, err)
 	}
 
 	tr := &v1.TaskRun{
@@ -119,7 +123,7 @@ func handlerRestartTaskRun(ctx context.Context, request mcp.CallToolRequest) (*m
 
 	tr, err = pipelineclientset.TektonV1().TaskRuns(namespace).Create(ctx, tr, metav1.CreateOptions{})
 	if err != nil {
-		return mcp.NewToolResultErrorFromErr(fmt.Sprintf("Failed to create TaskRun %s/%s", namespace, tr.ObjectMeta.Name), err), nil
+		return nil, fmt.Errorf("failed to create TaskRun %s/%s: %w", namespace, tr.ObjectMeta.Name, err)
 	}
 
 	return result(fmt.Sprintf("Restarting taskrun %s as %s in namespace %s", name, tr.ObjectMeta.Name, namespace)), nil

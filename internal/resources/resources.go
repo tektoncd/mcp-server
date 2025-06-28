@@ -3,13 +3,11 @@ package resources
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	pipelineinformer "github.com/tektoncd/pipeline/pkg/client/injection/informers/pipeline/v1/pipeline"
 	pipelineruninformer "github.com/tektoncd/pipeline/pkg/client/injection/informers/pipeline/v1/pipelinerun"
 	taskinformer "github.com/tektoncd/pipeline/pkg/client/injection/informers/pipeline/v1/task"
@@ -17,75 +15,93 @@ import (
 	stepactioninformer "github.com/tektoncd/pipeline/pkg/client/injection/informers/pipeline/v1beta1/stepaction"
 )
 
-func Add(ctx context.Context, s *server.MCPServer) {
-	s.AddResourceTemplate(pipelineRunResources(ctx))
+func Add(_ context.Context, s *mcp.Server) {
+	s.AddResourceTemplates(
+		&mcp.ServerResourceTemplate{
+			ResourceTemplate: &mcp.ResourceTemplate{
+				Name:        "Pipeline",
+				URITemplate: "tekton://pipeline/{namespace}/{name}",
+			},
+			Handler: resourceHandler,
+		},
+		&mcp.ServerResourceTemplate{
+			ResourceTemplate: &mcp.ResourceTemplate{
+				Name:        "PipelineRun",
+				URITemplate: "tekton://pipelinerun/{namespace}/{name}",
+			},
+			Handler: resourceHandler,
+		},
+		&mcp.ServerResourceTemplate{
+			ResourceTemplate: &mcp.ResourceTemplate{
+				Name:        "Task",
+				URITemplate: "tekton://task/{namespace}/{name}",
+			},
+			Handler: resourceHandler,
+		},
+		&mcp.ServerResourceTemplate{
+			ResourceTemplate: &mcp.ResourceTemplate{
+				Name:        "TaskRun",
+				URITemplate: "tekton://taskrun/{namespace}/{name}",
+			},
+			Handler: resourceHandler,
+		},
+		&mcp.ServerResourceTemplate{
+			ResourceTemplate: &mcp.ResourceTemplate{
+				Name:        "StepAction",
+				URITemplate: "tekton://stepaction/{namespace}/{name}",
+			},
+			Handler: resourceHandler,
+		},
+	)
 }
 
-func pipelineRunResources(ctx context.Context) (mcp.ResourceTemplate, server.ResourceTemplateHandlerFunc) {
-	return mcp.NewResourceTemplate(
-		"tekton://pipelinerun/{namespace}/{name}",
-		"PipelineRun",
-	), pipelineRunHandler(ctx)
-}
+func resourceHandler(ctx context.Context, _ *mcp.ServerSession, rrp *mcp.ReadResourceParams) (*mcp.ReadResourceResult, error) {
+	uri := rrp.URI
+	parsed := strings.Split(uri, "/")
+	resourceType := parsed[2]
+	namespace := parsed[3]
+	name := parsed[4]
 
-func pipelineRunHandler(ctx context.Context) server.ResourceTemplateHandlerFunc {
-	return func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-		ns, ok := request.Params.Arguments["namespace"].([]string)
-		if !ok || len(ns) == 0 {
-			return nil, errors.New("namespace is required")
+	var jsonData []byte
+	var err error
+
+	slog.Info(fmt.Sprintf("Resource: %s, %s/%s", resourceType, namespace, name))
+
+	switch resourceType {
+	case "pipelinerun":
+		jsonData, err = getPipelineRun(ctx, namespace, name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get PipelineRun %s/%s: %w", namespace, name, err)
 		}
-		namespace := ns[0]
-
-		n, ok := request.Params.Arguments["name"].([]string)
-		if !ok || len(n) == 0 {
-			return nil, errors.New("name is required")
+	case "taskrun":
+		jsonData, err = getTaskRun(ctx, namespace, name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get TaskRun %s/%s: %w", namespace, name, err)
 		}
-		name := n[0]
-
-		uri := request.Params.URI
-		resourceType := strings.Split(uri, "/")[2]
-
-		var jsonData []byte
-		var err error
-
-		slog.Info(fmt.Sprintf("Resource: %s, %s/%s", resourceType, namespace, name))
-
-		switch resourceType {
-		case "pipelinerun":
-			jsonData, err = getPipelineRun(ctx, namespace, name)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get PipelineRun %s/%s: %w", namespace, name, err)
-			}
-		case "taskrun":
-			jsonData, err = getTaskRun(ctx, namespace, name)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get TaskRun %s/%s: %w", namespace, name, err)
-			}
-		case "pipeline":
-			jsonData, err = getPipeline(ctx, namespace, name)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get Pipeline %s/%s: %w", namespace, name, err)
-			}
-		case "task":
-			jsonData, err = getTask(ctx, namespace, name)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get Task %s/%s: %w", namespace, name, err)
-			}
-		case "stepaction":
-			jsonData, err = getStepAction(ctx, namespace, name)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get StepAction %s/%s: %w", namespace, name, err)
-			}
+	case "pipeline":
+		jsonData, err = getPipeline(ctx, namespace, name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get Pipeline %s/%s: %w", namespace, name, err)
 		}
-
-		contents := mcp.TextResourceContents{
-			URI:      uri,
-			MIMEType: "application/json;type=" + resourceType,
-			Text:     string(jsonData),
+	case "task":
+		jsonData, err = getTask(ctx, namespace, name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get Task %s/%s: %w", namespace, name, err)
 		}
-
-		return []mcp.ResourceContents{contents}, nil
+	case "stepaction":
+		jsonData, err = getStepAction(ctx, namespace, name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get StepAction %s/%s: %w", namespace, name, err)
+		}
 	}
+
+	contents := &mcp.ResourceContents{
+		URI:      uri,
+		MIMEType: "application/json;type=" + resourceType,
+		Text:     string(jsonData),
+	}
+
+	return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{contents}}, nil
 }
 
 func getPipelineRun(ctx context.Context, namespace string, name string) ([]byte, error) {
