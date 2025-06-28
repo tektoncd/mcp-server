@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mark3labs/mcp-go/mcp"
+	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	ttesting "github.com/tektoncd/pipeline/pkg/reconciler/testing"
 	"github.com/tektoncd/pipeline/test"
@@ -102,19 +102,22 @@ func TestHandlerGetTaskRunLogs(t *testing.T) {
 	}
 	ctx = context.WithValue(ctx, kubeclient.Key{}, kubeclientset)
 
-	request := newCallToolRequest(map[string]any{"name": "hello-world", "namespace": "default"})
-	expected := mcp.NewTextContent(`
+	request := &mcp.CallToolParamsFor[getLogsParams]{
+		Arguments: getLogsParams{Name: "hello-world", Namespace: "default"},
+	}
+
+	expected := &mcp.TextContent{Text: `
 >>> Pod hello-world Container hello
 Hello, World!
 >>> Pod hello-world Container goodbye
-Goodbye!`)
+Goodbye!`}
 
-	result, err := handlerGetTaskRunLogs(ctx, request)
+	result, err := handlerGetTaskRunLogs(ctx, nil, request)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	received, _ := mcp.AsTextContent(result.Content[0])
+	received, _ := result.Content[0].(*mcp.TextContent)
 	if diff := cmp.Diff(expected.Text, received.Text); diff != "" {
 		t.Errorf("getLogs mismatch (-want +got):\n%s", diff)
 	}

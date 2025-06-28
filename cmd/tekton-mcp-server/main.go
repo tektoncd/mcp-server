@@ -1,15 +1,14 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/tektoncd/mcp-server/internal/resources"
 	"github.com/tektoncd/mcp-server/internal/tools"
 	"github.com/tektoncd/mcp-server/internal/version"
@@ -24,25 +23,18 @@ const ManagedByLabelKey = "app.kubernetes.io/managed-by"
 
 func main() {
 	var transport string
-	var sseAddr string
-	flag.StringVar(&transport, "transport", "stdio", "Transport type (stdio or sse)")
-	flag.StringVar(&sseAddr, "address", "", "Address to bind the SSE server to")
+	var httpAddr string
+	flag.StringVar(&transport, "transport", "http", "Transport type (stdio or http)")
+	flag.StringVar(&httpAddr, "address", ":3000", "Address to bind the HTTP server to")
 	flag.Parse()
 
-	if sseAddr == "" && transport == "sse" {
-		slog.Error("-address is required when transport is set to 'sse'")
+	if httpAddr == "" && transport == "http" {
+		slog.Error("-address is required when transport is set to 'http'")
 		os.Exit(1)
 	}
 
 	// Create MCP server
-	s := server.NewMCPServer(
-		"Tekton",
-		version.Version,
-		server.WithResourceCapabilities(true, true),
-		server.WithPromptCapabilities(true),
-		server.WithToolCapabilities(true),
-		server.WithLogging(),
-	)
+	s := mcp.NewServer("Tekton", version.Version, nil)
 
 	ctx := signals.NewContext()
 
@@ -74,21 +66,29 @@ func main() {
 	errC := make(chan error, 1)
 
 	switch transport {
-	case "sse":
-		sseServer := server.NewSSEServer(s, server.WithSSEContextFunc(func(_ context.Context, r *http.Request) context.Context { return ctx }))
+	case "http":
+
+		streamableHandler := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server { return s }, nil)
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			streamableHandler.ServeHTTP(w, r.WithContext(ctx))
+		})
+		server := &http.Server{
+			Addr:              httpAddr,
+			Handler:           handler,
+			ReadHeaderTimeout: 3 * time.Second,
+		}
+
 		go func() {
-			errC <- sseServer.Start(sseAddr)
+			errC <- server.ListenAndServe()
 		}()
-		slog.Info("Tekton MCP Server is listening at " + sseAddr)
+		slog.Info("Tekton MCP Server is listening at " + httpAddr)
 	case "stdio":
-		stdioServer := server.NewStdioServer(s)
 		go func() {
-			in, out := io.Reader(os.Stdin), io.Writer(os.Stdout)
-			errC <- stdioServer.Listen(ctx, in, out)
+			errC <- s.Run(ctx, mcp.NewStdioTransport())
 		}()
 		_, _ = fmt.Fprintf(os.Stderr, "Tekton MCP Server running on stdio\n")
 	default:
-		slog.Error(fmt.Sprintf("Invalid transport %q; must be sse or stdio", transport))
+		slog.Error(fmt.Sprintf("Invalid transport %q; must be http or stdio", transport))
 		os.Exit(1)
 	}
 

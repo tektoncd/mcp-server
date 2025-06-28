@@ -6,9 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
-	"github.com/tektoncd/mcp-server/internal/params"
+	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	taskruninformer "github.com/tektoncd/pipeline/pkg/client/injection/informers/pipeline/v1/taskrun"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,30 +14,37 @@ import (
 	kubeclient "knative.dev/pkg/client/injection/kube/client"
 )
 
-func getTaskRunLogs() server.ServerTool {
-	return server.ServerTool{
-		Tool: mcp.NewTool("get_taskrun_logs",
-			mcp.WithDescription("Get the logs for a given TaskRun"),
-			mcp.WithString("name", mcp.Required(),
-				mcp.Description("Name of the TaskRun to get logs for"),
-			),
-			mcp.WithString("namespace",
-				mcp.Description("Namespace where the TaskRun is located"),
-				mcp.DefaultString("default"),
-			),
-		),
-		Handler: handlerGetTaskRunLogs,
-	}
+type getLogsParams struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
 }
 
-func handlerGetTaskRunLogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name, ok := request.GetArguments()["name"].(string)
-	if !ok {
-		return mcp.NewToolResultError("name must be a string"), nil
-	}
-	namespace, err := params.Optional[string](request, "namespace")
-	if err != nil {
-		return mcp.NewToolResultErrorFromErr("namespace must be a string", err), nil
+func getTaskRunLogs() *mcp.ServerTool {
+	return mcp.NewServerTool(
+		"get_taskrun_logs",
+		"Get the logs for a given TaskRun",
+		handlerGetTaskRunLogs,
+		mcp.Input(
+			mcp.Property("name",
+				mcp.Description("Name or Reference of the TaskRun"),
+				mcp.Required(true),
+			),
+			mcp.Property("namespace",
+				mcp.Description("Namespace where the TaskRun is located"),
+			),
+		),
+	)
+}
+
+func handlerGetTaskRunLogs(
+	ctx context.Context,
+	cc *mcp.ServerSession,
+	params *mcp.CallToolParamsFor[getLogsParams],
+) (*mcp.CallToolResultFor[string], error) {
+	name := params.Arguments.Name
+	namespace := params.Arguments.Namespace
+	if namespace == "" {
+		namespace = "default"
 	}
 
 	taskrunInformer := taskruninformer.Get(ctx)
@@ -47,17 +52,17 @@ func handlerGetTaskRunLogs(ctx context.Context, request mcp.CallToolRequest) (*m
 
 	task, err := taskrunInformer.Lister().TaskRuns(namespace).Get(name)
 	if err != nil {
-		return mcp.NewToolResultErrorFromErr(fmt.Sprintf("Failed to get TaskRun %s/%s", namespace, name), err), nil
+		return nil, fmt.Errorf("failed to get TaskRun %s/%s: %w", namespace, name, err)
 	}
 
 	podName := task.Status.PodName
 	if podName == "" {
-		return mcp.NewToolResultError(fmt.Sprintf("PodName not set for TaskRun %s/%s", namespace, name)), nil
+		return nil, fmt.Errorf("podName not set for TaskRun %s/%s", namespace, name)
 	}
 
 	logs, err := getLogs(ctx, kubeclientset.CoreV1().Pods(namespace), podName)
 	if err != nil {
-		return mcp.NewToolResultErrorFromErr(fmt.Sprintf("Failed to get logs for TaskRun %s/%s", namespace, name), err), nil
+		return nil, fmt.Errorf("failed to get logs for TaskRun %s/%s: %w", namespace, name, err)
 	}
 
 	return result(logs), nil

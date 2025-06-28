@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	ttesting "github.com/tektoncd/pipeline/pkg/reconciler/testing"
@@ -26,39 +26,39 @@ func TestHandlerListStepActions(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		request       mcp.CallToolRequest
+		request       *mcp.CallToolParamsFor[listParams]
 		expectedNames []string
 	}{
 		{
 			name:          "No namespace, no filters",
-			request:       newCallToolRequest(map[string]any{}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{}},
 			expectedNames: []string{"foo-sa1", "bar-sa2"},
 		},
 		{
 			name:          "With namespace",
-			request:       newCallToolRequest(map[string]any{"namespace": "ns1"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Namespace: "ns1"}},
 			expectedNames: []string{"foo-sa1"},
 		},
 		{
 			name:          "With label selector",
-			request:       newCallToolRequest(map[string]any{"label-selector": "env=dev"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{LabelSelector: "env=dev"}},
 			expectedNames: []string{"bar-sa2"},
 		},
 		{
 			name:          "With prefix filter",
-			request:       newCallToolRequest(map[string]any{"prefix": "foo"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Prefix: "foo"}},
 			expectedNames: []string{"foo-sa1"},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			res, err := handlerListStepaction(ctx, test.request)
+			res, err := handlerListStepactions(ctx, nil, test.request)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			actual := res.Content[0].(mcp.TextContent)
+			actual := res.Content[0].(*mcp.TextContent)
 			var stepactions []*v1beta1.StepAction
 			if err = json.Unmarshal([]byte(actual.Text), &stepactions); err != nil {
 				t.Fatalf("failed to unmarshal stepactions: %v", err)
@@ -85,39 +85,39 @@ func TestHandlerListTaskRuns(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		request       mcp.CallToolRequest
+		request       *mcp.CallToolParamsFor[listParams]
 		expectedNames []string
 	}{
 		{
 			name:          "No namespace, no filters",
-			request:       newCallToolRequest(map[string]any{}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{}},
 			expectedNames: []string{"foo-tr1", "bar-tr2"},
 		},
 		{
 			name:          "With namespace",
-			request:       newCallToolRequest(map[string]any{"namespace": "ns1"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Namespace: "ns1"}},
 			expectedNames: []string{"foo-tr1"},
 		},
 		{
 			name:          "With label selector",
-			request:       newCallToolRequest(map[string]any{"label-selector": "env=dev"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{LabelSelector: "env=dev"}},
 			expectedNames: []string{"bar-tr2"},
 		},
 		{
 			name:          "With prefix filter",
-			request:       newCallToolRequest(map[string]any{"prefix": "foo"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Prefix: "foo"}},
 			expectedNames: []string{"foo-tr1"},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			res, err := handlerListTaskRun(ctx, test.request)
+			res, err := handlerListTaskRuns(ctx, nil, test.request)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			actual := res.Content[0].(mcp.TextContent)
+			actual := res.Content[0].(*mcp.TextContent)
 			var stepactions []*v1.TaskRun
 			if err = json.Unmarshal([]byte(actual.Text), &stepactions); err != nil {
 				t.Fatalf("failed to unmarshal stepactions: %v", err)
@@ -144,39 +144,39 @@ func TestHandlerListTasks(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		request       mcp.CallToolRequest
+		request       *mcp.CallToolParamsFor[listParams]
 		expectedNames []string
 	}{
 		{
 			name:          "No namespace, no filters",
-			request:       newCallToolRequest(map[string]any{}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{}},
 			expectedNames: []string{"foo-task1", "bar-task2"},
 		},
 		{
 			name:          "With namespace",
-			request:       newCallToolRequest(map[string]any{"namespace": "ns1"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Namespace: "ns1"}},
 			expectedNames: []string{"foo-task1"},
 		},
 		{
 			name:          "With label selector",
-			request:       newCallToolRequest(map[string]any{"label-selector": "env=dev"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{LabelSelector: "env=dev"}},
 			expectedNames: []string{"bar-task2"},
 		},
 		{
 			name:          "With prefix filter",
-			request:       newCallToolRequest(map[string]any{"prefix": "foo"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Prefix: "foo"}},
 			expectedNames: []string{"foo-task1"},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			res, err := handlerListTask(ctx, test.request)
+			res, err := handlerListTasks(ctx, nil, test.request)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			actual := res.Content[0].(mcp.TextContent)
+			actual := res.Content[0].(*mcp.TextContent)
 			var tasks []*v1.Task
 			if err = json.Unmarshal([]byte(actual.Text), &tasks); err != nil {
 				t.Fatalf("failed to unmarshal tasks: %v", err)
@@ -203,39 +203,39 @@ func TestHandlerListPipelines(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		request       mcp.CallToolRequest
+		request       *mcp.CallToolParamsFor[listParams]
 		expectedNames []string
 	}{
 		{
 			name:          "No namespace, no filters",
-			request:       newCallToolRequest(map[string]any{}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{}},
 			expectedNames: []string{"foo-pipeline1", "bar-pipeline2"},
 		},
 		{
 			name:          "With namespace",
-			request:       newCallToolRequest(map[string]any{"namespace": "ns1"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Namespace: "ns1"}},
 			expectedNames: []string{"foo-pipeline1"},
 		},
 		{
 			name:          "With label selector",
-			request:       newCallToolRequest(map[string]any{"label-selector": "env=dev"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{LabelSelector: "env=dev"}},
 			expectedNames: []string{"bar-pipeline2"},
 		},
 		{
 			name:          "With prefix filter",
-			request:       newCallToolRequest(map[string]any{"prefix": "foo"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Prefix: "foo"}},
 			expectedNames: []string{"foo-pipeline1"},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			res, err := handlerListPipeline(ctx, test.request)
+			res, err := handlerListPipelines(ctx, nil, test.request)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			actual := res.Content[0].(mcp.TextContent)
+			actual := res.Content[0].(*mcp.TextContent)
 			var pipelines []*v1.Pipeline
 			if err = json.Unmarshal([]byte(actual.Text), &pipelines); err != nil {
 				t.Fatalf("failed to unmarshal pipelines: %v", err)
@@ -262,39 +262,39 @@ func TestHandlerListPipelineRuns(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		request       mcp.CallToolRequest
+		request       *mcp.CallToolParamsFor[listParams]
 		expectedNames []string
 	}{
 		{
 			name:          "No namespace, no filters",
-			request:       newCallToolRequest(map[string]any{}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{}},
 			expectedNames: []string{"foo-pr1", "bar-pr2"},
 		},
 		{
 			name:          "With namespace",
-			request:       newCallToolRequest(map[string]any{"namespace": "ns1"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Namespace: "ns1"}},
 			expectedNames: []string{"foo-pr1"},
 		},
 		{
 			name:          "With label selector",
-			request:       newCallToolRequest(map[string]any{"label-selector": "env=dev"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{LabelSelector: "env=dev"}},
 			expectedNames: []string{"bar-pr2"},
 		},
 		{
 			name:          "With prefix filter",
-			request:       newCallToolRequest(map[string]any{"prefix": "foo"}),
+			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Prefix: "foo"}},
 			expectedNames: []string{"foo-pr1"},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			res, err := handlerListPipelineRun(ctx, test.request)
+			res, err := handlerListPipelineRuns(ctx, nil, test.request)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			actual := res.Content[0].(mcp.TextContent)
+			actual := res.Content[0].(*mcp.TextContent)
 			var prs []*v1.PipelineRun
 			if err = json.Unmarshal([]byte(actual.Text), &prs); err != nil {
 				t.Fatalf("failed to unmarshal pipelineruns: %v", err)
