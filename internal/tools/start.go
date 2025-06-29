@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	pipelineclient "github.com/tektoncd/pipeline/pkg/client/injection/client"
 	pipelineinformer "github.com/tektoncd/pipeline/pkg/client/injection/informers/pipeline/v1/pipeline"
@@ -13,38 +12,41 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func startPipeline() server.ServerTool {
-	return server.ServerTool{
-		Tool: mcp.NewTool("start_pipeline",
-			mcp.WithDescription("Start a Pipeline"),
-			mcp.WithString("name", mcp.Required(),
-				mcp.Description("Name or Reference of the Pipeline to start"),
-			),
-			mcp.WithString("namespace",
-				mcp.Description("Namespace where the Pipeline is located"),
-				mcp.DefaultString("default"),
-			),
-			// TODO add "parameters" objects
-		),
-		Handler: handlerStartPipeline,
-	}
+type startParams struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
 }
 
-func handlerStartPipeline(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name, ok := request.GetArguments()["name"].(string)
-	if !ok {
-		return mcp.NewToolResultError("name must be a string"), nil
-	}
-	namespace, ok := request.GetArguments()["namespace"].(string)
-	if !ok {
-		return mcp.NewToolResultError("namespace must be a string"), nil
-	}
+func startPipeline() *mcp.ServerTool {
+	return mcp.NewServerTool(
+		"start_pipeline",
+		"Start a Pipeline",
+		handlerStartPipeline,
+		mcp.Input(
+			mcp.Property("name",
+				mcp.Description("Name or Reference of the Pipeline to start"),
+				mcp.Required(true),
+			),
+			mcp.Property("namespace",
+				mcp.Description("Namespace where the Pipeline is located"),
+			),
+		),
+	)
+}
+
+func handlerStartPipeline(
+	ctx context.Context,
+	cc *mcp.ServerSession,
+	params *mcp.CallToolParamsFor[startParams],
+) (*mcp.CallToolResultFor[string], error) {
+	name := params.Arguments.Name
+	namespace := params.Arguments.Namespace
 
 	pipelineInformer := pipelineinformer.Get(ctx)
 	pipelineclientset := pipelineclient.Get(ctx)
 
 	if _, err := pipelineInformer.Lister().Pipelines(namespace).Get(name); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to get Pipeline %s/%s: %v", namespace, name, err)), nil
+		return nil, fmt.Errorf("failed to get Pipeline %s/%s: %w", namespace, name, err)
 	}
 
 	pr := &v1.PipelineRun{
@@ -64,44 +66,42 @@ func handlerStartPipeline(ctx context.Context, request mcp.CallToolRequest) (*mc
 	}
 
 	if _, err := pipelineclientset.TektonV1().PipelineRuns(namespace).Create(ctx, pr, metav1.CreateOptions{}); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create PipelineRun %s/%s: %v", namespace, name, err)), nil
+		return nil, fmt.Errorf("failed to create PipelineRun %s/%s: %w", namespace, name, err)
 	}
 
 	return result(fmt.Sprintf("Starting pipeline %s in namespace %s", name, namespace)), nil
 }
 
-func startTask() server.ServerTool {
-	return server.ServerTool{
-		Tool: mcp.NewTool("start_task",
-			mcp.WithDescription("Start a Task"),
-			mcp.WithString("name", mcp.Required(),
+func startTask() *mcp.ServerTool {
+	return mcp.NewServerTool(
+		"start_task",
+		"Start a Task",
+		handlerStartTask,
+		mcp.Input(
+			mcp.Property("name",
 				mcp.Description("Name or Reference of the Task to start"),
+				mcp.Required(true),
 			),
-			mcp.WithString("namespace",
+			mcp.Property("namespace",
 				mcp.Description("Namespace where the Task is located"),
-				mcp.DefaultString("default"),
 			),
-			// TODO add "parameters" objects
 		),
-		Handler: handlerStartTask,
-	}
+	)
 }
 
-func handlerStartTask(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name, ok := request.GetArguments()["name"].(string)
-	if !ok {
-		return mcp.NewToolResultError("name must be a string"), nil
-	}
-	namespace, ok := request.GetArguments()["namespace"].(string)
-	if !ok {
-		return mcp.NewToolResultError("namespace must be a string"), nil
-	}
+func handlerStartTask(
+	ctx context.Context,
+	cc *mcp.ServerSession,
+	params *mcp.CallToolParamsFor[startParams],
+) (*mcp.CallToolResultFor[string], error) {
+	name := params.Arguments.Name
+	namespace := params.Arguments.Namespace
 
 	taskInformer := taskinformer.Get(ctx)
 	pipelineclientset := pipelineclient.Get(ctx)
 
 	if _, err := taskInformer.Lister().Tasks(namespace).Get(name); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to get Task %s/%s: %v", namespace, name, err)), nil
+		return nil, fmt.Errorf("failed to get Task %s/%s: %w", namespace, name, err)
 	}
 
 	pr := &v1.TaskRun{
@@ -121,7 +121,7 @@ func handlerStartTask(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 	}
 
 	if _, err := pipelineclientset.TektonV1().TaskRuns(namespace).Create(ctx, pr, metav1.CreateOptions{}); err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to create TaskRun %s/%s: %v", namespace, name, err)), nil
+		return nil, fmt.Errorf("failed to create TaskRun %s/%s: %w", namespace, name, err)
 	}
 
 	return result(fmt.Sprintf("Starting task %s in namespace %s", name, namespace)), nil
