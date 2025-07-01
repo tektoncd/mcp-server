@@ -14,7 +14,9 @@ func newSession(t *testing.T, ctx context.Context) (*mcp.ServerSession, *mcp.Cli
 
 	ct, st := mcp.NewInMemoryTransports()
 	s := mcp.NewServer("Tekton", version.Version, nil)
-	Add(ctx, s)
+	if err := Add(ctx, s); err != nil {
+		t.Fatal(err)
+	}
 	resources.Add(ctx, s)
 	c := mcp.NewClient("TektonClient", version.Version, nil)
 

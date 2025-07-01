@@ -2,10 +2,12 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 
+	"github.com/modelcontextprotocol/go-sdk/jsonschema"
 	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	taskruninformer "github.com/tektoncd/pipeline/pkg/client/injection/informers/pipeline/v1/taskrun"
 	v1 "k8s.io/api/core/v1"
@@ -19,21 +21,30 @@ type getLogsParams struct {
 	Namespace string `json:"namespace"`
 }
 
-func getTaskRunLogs() *mcp.ServerTool {
+func getTaskRunLogsSchema() (mcp.ToolOption, error) {
+	scheme, err := jsonschema.For[getLogsParams]()
+	if err != nil {
+		return nil, err
+	}
+
+	scheme.Properties["name"].Description = "Name or referece of the object"
+	scheme.Properties["namespace"].Description = "Namespace of the object"
+	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
+
+	return mcp.Input(mcp.Schema(scheme)), nil
+}
+
+func getTaskRunLogs() (*mcp.ServerTool, error) {
+	schema, err := getTaskRunLogsSchema()
+	if err != nil {
+		return nil, err
+	}
 	return mcp.NewServerTool(
 		"get_taskrun_logs",
 		"Get the logs for a given TaskRun",
 		handlerGetTaskRunLogs,
-		mcp.Input(
-			mcp.Property("name",
-				mcp.Description("Name or Reference of the TaskRun"),
-				mcp.Required(true),
-			),
-			mcp.Property("namespace",
-				mcp.Description("Namespace where the TaskRun is located"),
-			),
-		),
-	)
+		schema,
+	), nil
 }
 
 func handlerGetTaskRunLogs(
@@ -43,9 +54,6 @@ func handlerGetTaskRunLogs(
 ) (*mcp.CallToolResultFor[string], error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
-	if namespace == "" {
-		namespace = "default"
-	}
 
 	taskrunInformer := taskruninformer.Get(ctx)
 	kubeclientset := kubeclient.Get(ctx)

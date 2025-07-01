@@ -19,26 +19,30 @@ type restartParams struct {
 	Namespace string `json:"namespace"`
 }
 
-func restartSchema() mcp.ToolOption {
+func restartSchema() (mcp.ToolOption, error) {
 	scheme, err := jsonschema.For[restartParams]()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	scheme.Properties["name"].Description = "Name or referece of the object"
 	scheme.Properties["namespace"].Description = "Namespace of the object"
 	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
 
-	return mcp.Input(mcp.Schema(scheme))
+	return mcp.Input(mcp.Schema(scheme)), nil
 }
 
-func restartPipelineRun() *mcp.ServerTool {
+func restartPipelineRun() (*mcp.ServerTool, error) {
+	schema, err := restartSchema()
+	if err != nil {
+		return nil, err
+	}
 	return mcp.NewServerTool(
 		"restart_pipelinerun",
 		"Restart a PipelineRun",
 		handlerRestartPipelineRun,
-		restartSchema(),
-	)
+		schema,
+	), nil
 }
 
 func handlerRestartPipelineRun(
@@ -80,13 +84,17 @@ func handlerRestartPipelineRun(
 	return result(fmt.Sprintf("Restarting pipelinerun %s as %s in namespace %s", name, pr.ObjectMeta.Name, namespace)), nil
 }
 
-func restartTaskRun() *mcp.ServerTool {
+func restartTaskRun() (*mcp.ServerTool, error) {
+	schema, err := restartSchema()
+	if err != nil {
+		return nil, err
+	}
 	return mcp.NewServerTool(
 		"restart_taskrun",
 		"Restart a TaskRun",
 		handlerRestartTaskRun,
-		restartSchema(),
-	)
+		schema,
+	), nil
 }
 
 func handlerRestartTaskRun(
