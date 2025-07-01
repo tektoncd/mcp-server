@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestHandlerStartPipeline(t *testing.T) {
+func TestStart(t *testing.T) {
 	data := test.Data{
 		Pipelines: []*v1.Pipeline{
 			{
@@ -21,26 +21,6 @@ func TestHandlerStartPipeline(t *testing.T) {
 				},
 			},
 		},
-	}
-
-	ctx, _ := ttesting.SetupFakeContext(t)
-	_, _ = test.SeedTestData(t, ctx, data)
-
-	request := &mcp.CallToolParamsFor[startParams]{
-		Arguments: startParams{Name: "hello-world", Namespace: "default"},
-	}
-	response, err := handlerStartPipeline(ctx, nil, request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	content, _ := response.Content[0].(*mcp.TextContent)
-	if !strings.HasPrefix(content.Text, "Starting pipeline") {
-		t.Fatalf("invalid resposne: %v", content)
-	}
-}
-
-func TestHandlerStartTask(t *testing.T) {
-	data := test.Data{
 		Tasks: []*v1.Task{
 			{
 				ObjectMeta: metav1.ObjectMeta{
@@ -54,15 +34,38 @@ func TestHandlerStartTask(t *testing.T) {
 	ctx, _ := ttesting.SetupFakeContext(t)
 	_, _ = test.SeedTestData(t, ctx, data)
 
-	request := &mcp.CallToolParamsFor[startParams]{
-		Arguments: startParams{Name: "hello-world", Namespace: "default"},
+	ss, cs := newSession(t, ctx)
+	defer ss.Close()
+	defer cs.Close()
+
+	tests := []struct {
+		tool     string
+		response string
+	}{
+		{
+			tool:     "start_pipeline",
+			response: "Starting pipeline",
+		},
+		{
+			tool:     "start_task",
+			response: "Starting task",
+		},
 	}
-	response, err := handlerStartTask(ctx, nil, request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	content, _ := response.Content[0].(*mcp.TextContent)
-	if !strings.HasPrefix(content.Text, "Starting task") {
-		t.Fatalf("invalid resposne: %v", content)
+
+	for _, test := range tests {
+		t.Run(test.tool, func(t *testing.T) {
+			response, err := cs.CallTool(ctx, &mcp.CallToolParams{
+				Name:      test.tool,
+				Arguments: map[string]string{"name": "hello-world", "namespace": "default"},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			// TODO: check response.IsError
+			content, _ := response.Content[0].(*mcp.TextContent)
+			if !strings.HasPrefix(content.Text, test.response) {
+				t.Fatalf("invalid response: %v", content)
+			}
+		})
 	}
 }

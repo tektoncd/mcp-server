@@ -13,296 +13,96 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestHandlerListStepActions(t *testing.T) {
+func TestList(t *testing.T) {
 	data := test.Data{
 		StepActions: []*v1beta1.StepAction{
-			{ObjectMeta: metav1.ObjectMeta{Name: "foo-sa1", Namespace: "ns1", Labels: map[string]string{"env": "prod"}}},
-			{ObjectMeta: metav1.ObjectMeta{Name: "bar-sa2", Namespace: "ns2", Labels: map[string]string{"env": "dev"}}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "ns1", Labels: map[string]string{"env": "prod"}}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "bar", Namespace: "ns2", Labels: map[string]string{"env": "dev"}}},
 		},
-	}
-
-	ctx, _ := ttesting.SetupFakeContext(t)
-	_, _ = test.SeedTestData(t, ctx, data)
-
-	tests := []struct {
-		name          string
-		request       *mcp.CallToolParamsFor[listParams]
-		expectedNames []string
-	}{
-		{
-			name:          "No namespace, no filters",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{}},
-			expectedNames: []string{"foo-sa1", "bar-sa2"},
-		},
-		{
-			name:          "With namespace",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Namespace: "ns1"}},
-			expectedNames: []string{"foo-sa1"},
-		},
-		{
-			name:          "With label selector",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{LabelSelector: "env=dev"}},
-			expectedNames: []string{"bar-sa2"},
-		},
-		{
-			name:          "With prefix filter",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Prefix: "foo"}},
-			expectedNames: []string{"foo-sa1"},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			res, err := handlerListStepactions(ctx, nil, test.request)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			actual := res.Content[0].(*mcp.TextContent)
-			var stepactions []*v1beta1.StepAction
-			if err = json.Unmarshal([]byte(actual.Text), &stepactions); err != nil {
-				t.Fatalf("failed to unmarshal stepactions: %v", err)
-			}
-			for _, stepaction := range stepactions {
-				if !slices.Contains(test.expectedNames, stepaction.GetName()) {
-					t.Fatalf("response contained unexpected result: %v", stepaction)
-				}
-			}
-		})
-	}
-}
-
-func TestHandlerListTaskRuns(t *testing.T) {
-	data := test.Data{
-		TaskRuns: []*v1.TaskRun{
-			{ObjectMeta: metav1.ObjectMeta{Name: "foo-tr1", Namespace: "ns1", Labels: map[string]string{"env": "prod"}}},
-			{ObjectMeta: metav1.ObjectMeta{Name: "bar-tr2", Namespace: "ns2", Labels: map[string]string{"env": "dev"}}},
-		},
-	}
-
-	ctx, _ := ttesting.SetupFakeContext(t)
-	_, _ = test.SeedTestData(t, ctx, data)
-
-	tests := []struct {
-		name          string
-		request       *mcp.CallToolParamsFor[listParams]
-		expectedNames []string
-	}{
-		{
-			name:          "No namespace, no filters",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{}},
-			expectedNames: []string{"foo-tr1", "bar-tr2"},
-		},
-		{
-			name:          "With namespace",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Namespace: "ns1"}},
-			expectedNames: []string{"foo-tr1"},
-		},
-		{
-			name:          "With label selector",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{LabelSelector: "env=dev"}},
-			expectedNames: []string{"bar-tr2"},
-		},
-		{
-			name:          "With prefix filter",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Prefix: "foo"}},
-			expectedNames: []string{"foo-tr1"},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			res, err := handlerListTaskRuns(ctx, nil, test.request)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			actual := res.Content[0].(*mcp.TextContent)
-			var stepactions []*v1.TaskRun
-			if err = json.Unmarshal([]byte(actual.Text), &stepactions); err != nil {
-				t.Fatalf("failed to unmarshal stepactions: %v", err)
-			}
-			for _, stepaction := range stepactions {
-				if !slices.Contains(test.expectedNames, stepaction.GetName()) {
-					t.Fatalf("response contained unexpected result: %v", stepaction)
-				}
-			}
-		})
-	}
-}
-
-func TestHandlerListTasks(t *testing.T) {
-	data := test.Data{
 		Tasks: []*v1.Task{
-			{ObjectMeta: metav1.ObjectMeta{Name: "foo-task1", Namespace: "ns1", Labels: map[string]string{"env": "prod"}}},
-			{ObjectMeta: metav1.ObjectMeta{Name: "bar-task2", Namespace: "ns2", Labels: map[string]string{"env": "dev"}}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "ns1", Labels: map[string]string{"env": "prod"}}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "bar", Namespace: "ns2", Labels: map[string]string{"env": "dev"}}},
 		},
-	}
-
-	ctx, _ := ttesting.SetupFakeContext(t)
-	_, _ = test.SeedTestData(t, ctx, data)
-
-	tests := []struct {
-		name          string
-		request       *mcp.CallToolParamsFor[listParams]
-		expectedNames []string
-	}{
-		{
-			name:          "No namespace, no filters",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{}},
-			expectedNames: []string{"foo-task1", "bar-task2"},
+		TaskRuns: []*v1.TaskRun{
+			{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "ns1", Labels: map[string]string{"env": "prod"}}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "bar", Namespace: "ns2", Labels: map[string]string{"env": "dev"}}},
 		},
-		{
-			name:          "With namespace",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Namespace: "ns1"}},
-			expectedNames: []string{"foo-task1"},
-		},
-		{
-			name:          "With label selector",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{LabelSelector: "env=dev"}},
-			expectedNames: []string{"bar-task2"},
-		},
-		{
-			name:          "With prefix filter",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Prefix: "foo"}},
-			expectedNames: []string{"foo-task1"},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			res, err := handlerListTasks(ctx, nil, test.request)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			actual := res.Content[0].(*mcp.TextContent)
-			var tasks []*v1.Task
-			if err = json.Unmarshal([]byte(actual.Text), &tasks); err != nil {
-				t.Fatalf("failed to unmarshal tasks: %v", err)
-			}
-			for _, task := range tasks {
-				if !slices.Contains(test.expectedNames, task.GetName()) {
-					t.Fatalf("response contained unexpected result: %v", task)
-				}
-			}
-		})
-	}
-}
-
-func TestHandlerListPipelines(t *testing.T) {
-	data := test.Data{
 		Pipelines: []*v1.Pipeline{
-			{ObjectMeta: metav1.ObjectMeta{Name: "foo-pipeline1", Namespace: "ns1", Labels: map[string]string{"env": "prod"}}},
-			{ObjectMeta: metav1.ObjectMeta{Name: "bar-pipeline2", Namespace: "ns2", Labels: map[string]string{"env": "dev"}}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "ns1", Labels: map[string]string{"env": "prod"}}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "bar", Namespace: "ns2", Labels: map[string]string{"env": "dev"}}},
 		},
-	}
-
-	ctx, _ := ttesting.SetupFakeContext(t)
-	_, _ = test.SeedTestData(t, ctx, data)
-
-	tests := []struct {
-		name          string
-		request       *mcp.CallToolParamsFor[listParams]
-		expectedNames []string
-	}{
-		{
-			name:          "No namespace, no filters",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{}},
-			expectedNames: []string{"foo-pipeline1", "bar-pipeline2"},
-		},
-		{
-			name:          "With namespace",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Namespace: "ns1"}},
-			expectedNames: []string{"foo-pipeline1"},
-		},
-		{
-			name:          "With label selector",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{LabelSelector: "env=dev"}},
-			expectedNames: []string{"bar-pipeline2"},
-		},
-		{
-			name:          "With prefix filter",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Prefix: "foo"}},
-			expectedNames: []string{"foo-pipeline1"},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			res, err := handlerListPipelines(ctx, nil, test.request)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			actual := res.Content[0].(*mcp.TextContent)
-			var pipelines []*v1.Pipeline
-			if err = json.Unmarshal([]byte(actual.Text), &pipelines); err != nil {
-				t.Fatalf("failed to unmarshal pipelines: %v", err)
-			}
-			for _, pipeline := range pipelines {
-				if !slices.Contains(test.expectedNames, pipeline.GetName()) {
-					t.Fatalf("response contained unexpected result: %v", pipeline)
-				}
-			}
-		})
-	}
-}
-
-func TestHandlerListPipelineRuns(t *testing.T) {
-	data := test.Data{
 		PipelineRuns: []*v1.PipelineRun{
-			{ObjectMeta: metav1.ObjectMeta{Name: "foo-pr1", Namespace: "ns1", Labels: map[string]string{"env": "prod"}}},
-			{ObjectMeta: metav1.ObjectMeta{Name: "bar-pr2", Namespace: "ns2", Labels: map[string]string{"env": "dev"}}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "ns1", Labels: map[string]string{"env": "prod"}}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "bar", Namespace: "ns2", Labels: map[string]string{"env": "dev"}}},
 		},
 	}
 
 	ctx, _ := ttesting.SetupFakeContext(t)
 	_, _ = test.SeedTestData(t, ctx, data)
 
+	ss, cs := newSession(t, ctx)
+	defer ss.Close()
+	defer cs.Close()
+
+	tools := []string{
+		"list_stepactions",
+		"list_tasks",
+		"list_taskruns",
+		"list_pipelines",
+		"list_pipelineruns",
+	}
+
 	tests := []struct {
-		name          string
-		request       *mcp.CallToolParamsFor[listParams]
-		expectedNames []string
+		name      string
+		arguments map[string]string
+		expected  []string
 	}{
 		{
-			name:          "No namespace, no filters",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{}},
-			expectedNames: []string{"foo-pr1", "bar-pr2"},
+			name:      "No namespace, no filters",
+			arguments: map[string]string{},
+			expected:  []string{"foo", "bar"},
 		},
 		{
-			name:          "With namespace",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Namespace: "ns1"}},
-			expectedNames: []string{"foo-pr1"},
+			name:      "With namespace",
+			arguments: map[string]string{"namespace": "ns1"},
+			expected:  []string{"foo"},
 		},
 		{
-			name:          "With label selector",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{LabelSelector: "env=dev"}},
-			expectedNames: []string{"bar-pr2"},
+			name:      "With label selector",
+			arguments: map[string]string{"labelSelector": "env=dev"},
+			expected:  []string{"bar"},
 		},
 		{
-			name:          "With prefix filter",
-			request:       &mcp.CallToolParamsFor[listParams]{Arguments: listParams{Prefix: "foo"}},
-			expectedNames: []string{"foo-pr1"},
+			name:      "With prefix filter",
+			arguments: map[string]string{"prefix": "foo"},
+			expected:  []string{"foo"},
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			res, err := handlerListPipelineRuns(ctx, nil, test.request)
-			if err != nil {
-				t.Fatal(err)
-			}
+	for _, tool := range tools {
+		t.Run(tool, func(t *testing.T) {
+			for _, test := range tests {
+				t.Run(test.name, func(t *testing.T) {
+					response, err := cs.CallTool(t.Context(), &mcp.CallToolParams{
+						Name:      tool,
+						Arguments: test.arguments,
+					})
+					if err != nil {
+						t.Fatal(err)
+					}
 
-			actual := res.Content[0].(*mcp.TextContent)
-			var prs []*v1.PipelineRun
-			if err = json.Unmarshal([]byte(actual.Text), &prs); err != nil {
-				t.Fatalf("failed to unmarshal pipelineruns: %v", err)
-			}
-			for _, pr := range prs {
-				if !slices.Contains(test.expectedNames, pr.GetName()) {
-					t.Fatalf("response contained unexpected result: %v", pr)
-				}
+					actual := response.Content[0].(*mcp.TextContent)
+					var objects []map[string]any
+					if err = json.Unmarshal([]byte(actual.Text), &objects); err != nil {
+						t.Fatalf("failed to unmarshal objects: %v", err)
+					}
+					for _, object := range objects {
+						metadata := object["metadata"].(map[string]any)
+						if !slices.Contains(test.expected, metadata["name"].(string)) {
+							t.Fatalf("response contained unexpected result: %v", object)
+						}
+					}
+				})
 			}
 		})
 	}

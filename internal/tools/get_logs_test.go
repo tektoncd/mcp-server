@@ -73,7 +73,7 @@ func (f *fakePodV1Client) GetLogs(name string, opts *corev1.PodLogOptions) *rest
 	return fakeClient.Request()
 }
 
-func TestHandlerGetTaskRunLogs(t *testing.T) {
+func TestGetTaskRunLogs(t *testing.T) {
 	data := test.Data{
 		TaskRuns: []*v1.TaskRun{
 			{
@@ -102,9 +102,9 @@ func TestHandlerGetTaskRunLogs(t *testing.T) {
 	}
 	ctx = context.WithValue(ctx, kubeclient.Key{}, kubeclientset)
 
-	request := &mcp.CallToolParamsFor[getLogsParams]{
-		Arguments: getLogsParams{Name: "hello-world", Namespace: "default"},
-	}
+	ss, cs := newSession(t, ctx)
+	defer ss.Close()
+	defer cs.Close()
 
 	expected := &mcp.TextContent{Text: `
 >>> Pod hello-world Container hello
@@ -112,12 +112,15 @@ Hello, World!
 >>> Pod hello-world Container goodbye
 Goodbye!`}
 
-	result, err := handlerGetTaskRunLogs(ctx, nil, request)
+	response, err := cs.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "get_taskrun_logs",
+		Arguments: map[string]string{"name": "hello-world", "namespace": "default"},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	received, _ := result.Content[0].(*mcp.TextContent)
+	received, _ := response.Content[0].(*mcp.TextContent)
 	if diff := cmp.Diff(expected.Text, received.Text); diff != "" {
 		t.Errorf("getLogs mismatch (-want +got):\n%s", diff)
 	}
