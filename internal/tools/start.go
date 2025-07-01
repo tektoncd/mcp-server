@@ -19,26 +19,22 @@ type startParams struct {
 	Namespace string `json:"namespace"`
 }
 
-func startSchema() mcp.ToolOption {
+func startPipeline() (*mcp.ServerTool, error) {
 	scheme, err := jsonschema.For[startParams]()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	scheme.Properties["name"].Description = "Name or referece of the object"
-	scheme.Properties["namespace"].Description = "Namespace of the object"
+	scheme.Properties["name"].Description = "Name or referece of the pipeline"
+	scheme.Properties["namespace"].Description = "Namespace of the pipeline"
 	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
 
-	return mcp.Input(mcp.Schema(scheme))
-}
-
-func startPipeline() *mcp.ServerTool {
 	return mcp.NewServerTool(
 		"start_pipeline",
 		"Start a Pipeline",
 		handlerStartPipeline,
-		startSchema(),
-	)
+		mcp.Input(mcp.Schema(scheme)),
+	), nil
 }
 
 func handlerStartPipeline(
@@ -79,13 +75,22 @@ func handlerStartPipeline(
 	return result(fmt.Sprintf("Starting pipeline %s in namespace %s", name, namespace)), nil
 }
 
-func startTask() *mcp.ServerTool {
+func startTask() (*mcp.ServerTool, error) {
+	scheme, err := jsonschema.For[startParams]()
+	if err != nil {
+		return nil, err
+	}
+
+	scheme.Properties["name"].Description = "Name or referece of the task"
+	scheme.Properties["namespace"].Description = "Namespace of the task"
+	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
+
 	return mcp.NewServerTool(
 		"start_task",
 		"Start a Task",
 		handlerStartTask,
-		startSchema(),
-	)
+		mcp.Input(mcp.Schema(scheme)),
+	), nil
 }
 
 func handlerStartTask(

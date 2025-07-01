@@ -57,8 +57,11 @@ func main() {
 	// Start the injection clients and informers.
 	startInformers()
 
-	slog.Info("Adding tools and resources to the server.")
-	tools.Add(ctx, s)
+	if err = tools.Add(ctx, s); err != nil {
+		slog.Error(fmt.Sprintf("unable to add tools: %v", err))
+		os.Exit(1)
+	}
+
 	resources.Add(ctx, s)
 
 	slog.Info("Starting the server.")
