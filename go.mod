@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/google/go-cmp v0.7.0
-	github.com/modelcontextprotocol/go-sdk v0.0.0-20250627194314-8a3f272dbbcf
+	github.com/modelcontextprotocol/go-sdk v0.1.0
 	github.com/tektoncd/pipeline v1.2.0
 	k8s.io/api v0.32.6
 	k8s.io/apimachinery v0.32.6
