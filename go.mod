@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/google/go-cmp v0.7.0
-	github.com/modelcontextprotocol/go-sdk v0.1.0
+	github.com/modelcontextprotocol/go-sdk v0.2.0
 	github.com/tektoncd/pipeline v1.2.0
 	k8s.io/api v0.32.7
 	k8s.io/apimachinery v0.32.7
@@ -75,6 +75,7 @@ require (
 	github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 // indirect
 	github.com/vbatts/tar-split v0.12.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect

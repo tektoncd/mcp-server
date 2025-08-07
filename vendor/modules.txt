@@ -224,11 +224,12 @@ github.com/mailru/easyjson/jwriter
 # github.com/mitchellh/go-homedir v1.1.0
 ## explicit
 github.com/mitchellh/go-homedir
-# github.com/modelcontextprotocol/go-sdk v0.1.0
+# github.com/modelcontextprotocol/go-sdk v0.2.0
 ## explicit; go 1.23.0
 github.com/modelcontextprotocol/go-sdk/internal/jsonrpc2
 github.com/modelcontextprotocol/go-sdk/internal/util
 github.com/modelcontextprotocol/go-sdk/internal/xcontext
+github.com/modelcontextprotocol/go-sdk/jsonrpc
 github.com/modelcontextprotocol/go-sdk/jsonschema
 github.com/modelcontextprotocol/go-sdk/mcp
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
@@ -398,6 +399,9 @@ github.com/vbatts/tar-split/archive/tar
 # github.com/x448/float16 v0.8.4
 ## explicit; go 1.11
 github.com/x448/float16
+# github.com/yosida95/uritemplate/v3 v3.0.2
+## explicit; go 1.14
+github.com/yosida95/uritemplate/v3
 # go.opencensus.io v0.24.0
 ## explicit; go 1.13
 go.opencensus.io
