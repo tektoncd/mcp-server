@@ -7,47 +7,133 @@ It initially focuses on [`tektoncd/pipeline`](https://github.com/tektoncd/pipeli
 
 ## Tools
 
+### List Operations
+
 #### `list_pipelines` – List Pipelines in the Cluster with Filtering Options
 - `namespace`: Namespace to list Pipelines from (string, required)
 - `prefix`: Name prefix to filter Pipelines (string, optional)
 - `label-selector`: Label selector to filter Pipelines (string, optional)
-
-#### `start_pipeline` – Start a Pipeline
-- `name`: Name or reference of the Pipeline to start (string, required)
-- `namespace`: Namespace where the Pipeline is located (string, optional, default: "default")
 
 #### `list_pipeline_runs` – List PipelineRuns in the Cluster with Filtering Options
 - `namespace`: Namespace to list PipelineRuns from (string, required)
 - `prefix`: Name prefix to filter PipelineRuns (string, optional)
 - `label-selector`: Label selector to filter PipelineRuns (string, optional)
 
-#### `restart_pipelinerun` – Restart a PipelineRun
-- `name`: Name or reference of the PipelineRun to restart (string, required)
-- `namespace`: Namespace where the PipelineRun is located (string, optional, default: "default")
-
 #### `list_tasks` – List Tasks in the Cluster with Filtering Options
 - `namespace`: Namespace to list Tasks from (string, required)
 - `prefix`: Name prefix to filter Tasks (string, optional)
 - `label-selector`: Label selector to filter Tasks (string, optional)
-
-#### `start_task` – Start a Task
-- `name`: Name or reference of the Task to start (string, required)
-- `namespace`: Namespace where the Task is located (string, optional, default: "default")
 
 #### `list_task_runs` – List TaskRuns in the Cluster with Filtering Options
 - `namespace`: Namespace to list TaskRuns from (string, required)
 - `prefix`: Name prefix to filter TaskRuns (string, optional)
 - `label-selector`: Label selector to filter TaskRuns (string, optional)
 
-#### `restart_taskrun` – Restart a TaskRun
-- `name`: Name or reference of the TaskRun to restart (string, required)
-- `namespace`: Namespace where the TaskRun is located (string, optional, default: "default")
-
 #### `list_stepactions` – List Step Actions in the Cluster with Filtering Options
 - `namespace`: Namespace to list Step Actions from (string, required)
 - `prefix`: Name prefix to filter Step Actions (string, optional)
 - `label-selector`: Label selector to filter Step Actions (string, optional)
 
+### Create Operations
+
+#### `create_pipeline` – Create a new Pipeline from YAML definition
+- `namespace`: Namespace where the Pipeline will be created (string, optional, default: "default")
+- `yaml`: YAML definition of the Pipeline (string, required)
+
+#### `create_task` – Create a new Task from YAML definition
+- `namespace`: Namespace where the Task will be created (string, optional, default: "default")
+- `yaml`: YAML definition of the Task (string, required)
+
+#### `create_pipelinerun` – Create a new PipelineRun from YAML definition or generate from Pipeline
+- `namespace`: Namespace where the PipelineRun will be created (string, optional, default: "default")
+- `yaml`: YAML definition of the PipelineRun (string, optional)
+- `generateName`: Generate name prefix for the PipelineRun (string, optional)
+
+#### `create_taskrun` – Create a new TaskRun from YAML definition
+- `namespace`: Namespace where the TaskRun will be created (string, optional, default: "default")
+- `yaml`: YAML definition of the TaskRun (string, optional)
+- `generateName`: Generate name prefix for the TaskRun (string, optional)
+
+### Get Operations
+
+#### `get_pipeline` – Get a specific Pipeline by name
+- `name`: Name of the Pipeline to get (string, required)
+- `namespace`: Namespace of the Pipeline (string, optional, default: "default")
+- `output`: Output format - json or yaml (string, optional, default: "yaml")
+
+#### `get_task` – Get a specific Task by name
+- `name`: Name of the Task to get (string, required)
+- `namespace`: Namespace of the Task (string, optional, default: "default")
+- `output`: Output format - json or yaml (string, optional, default: "yaml")
+
+#### `get_pipelinerun` – Get a specific PipelineRun by name
+- `name`: Name of the PipelineRun to get (string, required)
+- `namespace`: Namespace of the PipelineRun (string, optional, default: "default")
+- `output`: Output format - json or yaml (string, optional, default: "yaml")
+
+#### `get_taskrun` – Get a specific TaskRun by name
+- `name`: Name of the TaskRun to get (string, required)
+- `namespace`: Namespace of the TaskRun (string, optional, default: "default")
+- `output`: Output format - json or yaml (string, optional, default: "yaml")
+
 #### `get_taskrun_logs` - Get the logs for a given TaskRun
+- `name`: Name or reference of the TaskRun to get logs from (string, required)
+- `namespace`: Namespace where the TaskRun is located (string, optional, default: "default")
+
+### Update Operations
+
+#### `update_pipeline` – Update an existing Pipeline
+- `name`: Name of the Pipeline to update (string, required)
+- `namespace`: Namespace of the Pipeline (string, optional, default: "default")
+- `yaml`: Updated YAML definition of the Pipeline (string, required)
+
+#### `update_task` – Update an existing Task
+- `name`: Name of the Task to update (string, required)
+- `namespace`: Namespace of the Task (string, optional, default: "default")
+- `yaml`: Updated YAML definition of the Task (string, required)
+
+#### `patch_pipeline` – Apply a JSON patch to an existing Pipeline
+- `name`: Name of the Pipeline to patch (string, required)
+- `namespace`: Namespace of the Pipeline (string, optional, default: "default")
+- `patch`: JSON patch to apply to the Pipeline (string, required)
+
+### Delete Operations
+
+#### `delete_pipeline` – Delete a Pipeline
+- `name`: Name of the Pipeline to delete (string, required)
+- `namespace`: Namespace of the Pipeline (string, optional, default: "default")
+
+#### `delete_task` – Delete a Task
+- `name`: Name of the Task to delete (string, required)
+- `namespace`: Namespace of the Task (string, optional, default: "default")
+
+#### `delete_pipelinerun` – Delete a PipelineRun
+- `name`: Name of the PipelineRun to delete (string, required)
+- `namespace`: Namespace of the PipelineRun (string, optional, default: "default")
+
+#### `delete_taskrun` – Delete a TaskRun
+- `name`: Name of the TaskRun to delete (string, required)
+- `namespace`: Namespace of the TaskRun (string, optional, default: "default")
+
+#### `delete_all_pipelineruns` – Delete multiple PipelineRuns based on selectors
+- `namespace`: Namespace to delete PipelineRuns from (string, optional, default: "default")
+- `labelSelector`: Label selector to filter PipelineRuns to delete (string, optional)
+- `fieldSelector`: Field selector to filter PipelineRuns to delete (string, optional)
+
+### Start/Restart Operations
+
+#### `start_pipeline` – Start a Pipeline
+- `name`: Name or reference of the Pipeline to start (string, required)
+- `namespace`: Namespace where the Pipeline is located (string, optional, default: "default")
+
+#### `start_task` – Start a Task
+- `name`: Name or reference of the Task to start (string, required)
+- `namespace`: Namespace where the Task is located (string, optional, default: "default")
+
+#### `restart_pipelinerun` – Restart a PipelineRun
+- `name`: Name or reference of the PipelineRun to restart (string, required)
+- `namespace`: Namespace where the PipelineRun is located (string, optional, default: "default")
+
+#### `restart_taskrun` – Restart a TaskRun
 - `name`: Name or reference of the TaskRun to restart (string, required)
 - `namespace`: Namespace where the TaskRun is located (string, optional, default: "default")
