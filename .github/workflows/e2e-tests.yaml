@@ -34,7 +34,8 @@ jobs:
 
     - name: Install ko
       run: |
-        curl -L https://github.com/ko-build/ko/releases/download/${{ env.KO_VERSION }}/ko_${{ env.KO_VERSION:1 }}_Linux_x86_64.tar.gz | tar xzf - ko
+        KO_VERSION_NUMBER=$(echo "${{ env.KO_VERSION }}" | sed 's/^v//')
+        curl -L https://github.com/ko-build/ko/releases/download/${{ env.KO_VERSION }}/ko_${KO_VERSION_NUMBER}_Linux_x86_64.tar.gz | tar xzf - ko
         chmod +x ko
         sudo mv ko /usr/local/bin
 
@@ -145,7 +146,7 @@ jobs:
         go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/...
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.txt
         fail_ci_if_error: false
