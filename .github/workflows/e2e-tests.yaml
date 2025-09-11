@@ -1,0 +1,151 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+
+env:
+  GO_VERSION: '1.23'
+  KIND_VERSION: 'v0.20.0'
+  KUBERNETES_VERSION: 'v1.28.0'
+  TEKTON_VERSION: 'v0.59.0'
+  KO_VERSION: 'v0.15.1'
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+
+    - name: Install ko
+      run: |
+        curl -L https://github.com/ko-build/ko/releases/download/${{ env.KO_VERSION }}/ko_${{ env.KO_VERSION:1 }}_Linux_x86_64.tar.gz | tar xzf - ko
+        chmod +x ko
+        sudo mv ko /usr/local/bin
+
+    - name: Install Kind
+      run: |
+        curl -Lo ./kind https://kind.sigs.k8s.io/dl/${{ env.KIND_VERSION }}/kind-linux-amd64
+        chmod +x ./kind
+        sudo mv ./kind /usr/local/bin/kind
+
+    - name: Create Kind cluster
+      run: |
+        kind create cluster --image kindest/node:${{ env.KUBERNETES_VERSION }} --wait 5m
+        kubectl cluster-info
+        kubectl version
+
+    - name: Install Tekton Pipelines
+      run: |
+        kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeline/previous/${{ env.TEKTON_VERSION }}/release.yaml
+        
+        # Wait for Tekton Pipelines to be ready
+        kubectl wait --for=condition=Established --all crd --timeout=120s
+        kubectl wait --for=condition=ready pods --all -n tekton-pipelines --timeout=300s
+
+    - name: Setup local registry
+      run: |
+        # Create a local registry for ko
+        docker run -d -p 5000:5000 --name registry registry:2
+        
+        # Connect the registry to the kind network
+        docker network connect kind registry || true
+        
+        # Configure ko to use the local registry
+        echo "KO_DOCKER_REPO=localhost:5000" >> $GITHUB_ENV
+        echo "INSECURE_REGISTRY=true" >> $GITHUB_ENV
+
+    - name: Deploy MCP Server
+      run: |
+        # Build and deploy MCP server using ko
+        export KO_DOCKER_REPO=localhost:5000
+        ko apply -B -f config/
+
+        # Wait for MCP server deployment to be ready
+        kubectl wait --for=condition=available --timeout=180s deployment/tekton-mcp-server -n tekton-mcp-server
+
+    - name: Setup port-forward
+      run: |
+        # Start port-forward in the background
+        kubectl port-forward -n tekton-mcp-server service/tekton-mcp-server 3000:3000 &
+        echo "PORT_FORWARD_PID=$!" >> $GITHUB_ENV
+        
+        # Wait for port-forward to be ready
+        for i in {1..30}; do
+          if curl -s http://localhost:3000 > /dev/null 2>&1; then
+            echo "MCP server is accessible"
+            break
+          fi
+          echo "Waiting for MCP server to be accessible... ($i/30)"
+          sleep 2
+        done
+
+    - name: Run E2E tests
+      run: |
+        # Run the E2E tests
+        go test -v -count=1 -tags=e2e -timeout=20m ./test \
+          -mcp-server-url=http://localhost:3000 \
+          -deploy-mcp-server=false
+
+    - name: Collect logs on failure
+      if: failure()
+      run: |
+        echo "=== MCP Server Logs ==="
+        kubectl logs -n tekton-mcp-server -l app.kubernetes.io/name=tekton-mcp-server --tail=100
+        
+        echo "=== MCP Server Deployment Status ==="
+        kubectl get deployment -n tekton-mcp-server tekton-mcp-server -o yaml
+        
+        echo "=== All Pods ==="
+        kubectl get pods --all-namespaces
+        
+        echo "=== Test Namespaces ==="
+        kubectl get namespaces -l tekton-mcp-test=true
+
+    - name: Cleanup
+      if: always()
+      run: |
+        # Kill port-forward if it's running
+        if [ ! -z "${PORT_FORWARD_PID}" ]; then
+          kill ${PORT_FORWARD_PID} || true
+        fi
+        
+        # Delete kind cluster
+        kind delete cluster
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+
+    - name: Run unit tests
+      run: |
+        go test -v -race -coverprofile=coverage.txt -covermode=atomic ./internal/...
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.txt
+        fail_ci_if_error: false
