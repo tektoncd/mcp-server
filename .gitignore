@@ -1,27 +1,74 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
+# MacOS file viewer garbage.
+.DS_Store
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
 *.so
 *.dylib
+*.dll
 
-# Test binary, built with `go test -c`
+# Fortran module files
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Emacs garbage
+*~
+
+# Vim garbage
+*.swp
+
+# VSCode config
+.vscode
+
+# JetBrains IDE config
+.idea
+
+# Python
+*.pyc
+
+# Release-generated source archives, just in case they get committed
+# accidentally.
+cmd/*/kodata/source.tar.gz
+
+
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
+# binaries
 go.work
 go.work.sum
+test/pullrequest/pullrequest-init
+/.bin/
+/bin/
+.bin
 
-# env file
-.env
+# Temporary GOPATH used during code gen if user's Tekton checkout is
+# not already in GOPATH.
+.gopath
+
+# Ignore .env files
+/.env
+
+# Ignore generated kind.yaml
+kind.yaml
 
 /tekton-mcp-server
+

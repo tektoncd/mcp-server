@@ -9,7 +9,7 @@ metadata:
 rules:
   # Access to Tekton resources
   - apiGroups: ["tekton.dev"]
-    resources: ["tasks", "pipelines", "taskruns", "pipelineruns"]
+    resources: ["tasks", "pipelines", "taskruns", "pipelineruns", "stepactions"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   # Access to kubernetes resources
   - apiGroups: [""]
