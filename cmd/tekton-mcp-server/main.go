@@ -25,7 +25,7 @@ func main() {
 	var transport string
 	var httpAddr string
 	flag.StringVar(&transport, "transport", "http", "Transport type (stdio or http)")
-	flag.StringVar(&httpAddr, "address", ":3000", "Address to bind the HTTP server to")
+	flag.StringVar(&httpAddr, "address", ":8080", "Address to bind the HTTP server to")
 	flag.Parse()
 
 	if httpAddr == "" && transport == "http" {
