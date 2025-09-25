@@ -107,6 +107,20 @@ func Add(_ context.Context, s *mcp.Server) error {
 		return err
 	}
 
+	// Artifact Hub tools
+	listArtifactHubTasksTool := listArtifactHubTasks()
+	listArtifactHubPipelinesTool := listArtifactHubPipelines()
+	installArtifactHubTaskTool, err := installArtifactHubTask()
+	if err != nil {
+		return err
+	}
+	installArtifactHubPipelineTool, err := installArtifactHubPipeline()
+	if err != nil {
+		return err
+	}
+	triggerArtifactHubTaskTool := triggerArtifactHubTask()
+	triggerArtifactHubPipelineTool := triggerArtifactHubPipeline()
+
 	s.AddTools(
 		// Existing tools
 		startPipelineTool,
@@ -143,6 +157,14 @@ func Add(_ context.Context, s *mcp.Server) error {
 		deletePipelineRunTool,
 		deleteTaskRunTool,
 		deleteAllPipelineRunsTool,
+
+		// Artifact Hub operations
+		listArtifactHubTasksTool,
+		listArtifactHubPipelinesTool,
+		installArtifactHubTaskTool,
+		installArtifactHubPipelineTool,
+		triggerArtifactHubTaskTool,
+		triggerArtifactHubPipelineTool,
 	)
 	return nil
 }
