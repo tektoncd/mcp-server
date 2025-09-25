@@ -25,6 +25,10 @@ BINARIES=$(addprefix bin/,$(COMMANDS))
 .PHONY: all
 all: fmt $(BINARIES) | $(BIN) ; $(info $(M) building executable…) @ ## Build program binary
 
+.PHONY: fmt
+fmt: ; $(info $(M) running gofmt…) @ ## Format Go source code
+	$Q $(GO) fmt ./...
+
 $(BIN):
 	@mkdir -p $@
 $(BIN)/%: | $(BIN) ; $(info $(M) building $(PACKAGE)…)
