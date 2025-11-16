@@ -14,7 +14,7 @@ It initially focuses on [`tektoncd/pipeline`](https://github.com/tektoncd/pipeli
 - `prefix`: Name prefix to filter Pipelines (string, optional)
 - `label-selector`: Label selector to filter Pipelines (string, optional)
 
-#### `list_pipeline_runs` – List PipelineRuns in the Cluster with Filtering Options
+#### `list_pipelineruns` – List PipelineRuns in the Cluster with Filtering Options
 - `namespace`: Namespace to list PipelineRuns from (string, required)
 - `prefix`: Name prefix to filter PipelineRuns (string, optional)
 - `label-selector`: Label selector to filter PipelineRuns (string, optional)
@@ -24,7 +24,7 @@ It initially focuses on [`tektoncd/pipeline`](https://github.com/tektoncd/pipeli
 - `prefix`: Name prefix to filter Tasks (string, optional)
 - `label-selector`: Label selector to filter Tasks (string, optional)
 
-#### `list_task_runs` – List TaskRuns in the Cluster with Filtering Options
+#### `list_taskruns` – List TaskRuns in the Cluster with Filtering Options
 - `namespace`: Namespace to list TaskRuns from (string, required)
 - `prefix`: Name prefix to filter TaskRuns (string, optional)
 - `label-selector`: Label selector to filter TaskRuns (string, optional)
