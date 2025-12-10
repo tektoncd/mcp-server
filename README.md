@@ -137,3 +137,41 @@ It initially focuses on [`tektoncd/pipeline`](https://github.com/tektoncd/pipeli
 #### `restart_taskrun` – Restart a TaskRun
 - `name`: Name or reference of the TaskRun to restart (string, required)
 - `namespace`: Namespace where the TaskRun is located (string, optional, default: "default")
+
+## Artifact Hub Integration
+
+The MCP server provides integration with [Artifact Hub](https://artifacthub.io) to discover, install, and trigger Tekton tasks and pipelines from the community catalog.
+
+### Artifact Hub Discovery Operations
+
+#### `list_artifacthub_tasks` – List Tekton Tasks from Artifact Hub
+- `query`: Search query to filter tasks (string, optional)
+- `limit`: Maximum number of results to return (integer, optional, default: 20)
+
+#### `list_artifacthub_pipelines` – List Tekton Pipelines from Artifact Hub
+- `query`: Search query to filter pipelines (string, optional)
+- `limit`: Maximum number of results to return (integer, optional, default: 20)
+
+### Artifact Hub Installation Operations
+
+#### `install_artifacthub_task` – Install a Tekton Task from Artifact Hub
+- `packageId`: The Artifact Hub package ID of the task to install (string, required)
+- `version`: Version of the task to install (string, optional)
+- `namespace`: Namespace where the task will be installed (string, optional, default: "default")
+
+#### `install_artifacthub_pipeline` – Install a Tekton Pipeline from Artifact Hub
+- `packageId`: The Artifact Hub package ID of the pipeline to install (string, required)
+- `version`: Version of the pipeline to install (string, optional)
+- `namespace`: Namespace where the pipeline will be installed (string, optional, default: "default")
+
+### Artifact Hub Trigger Operations
+
+#### `trigger_artifacthub_task` – Trigger a Task installed from Artifact Hub
+- `name`: Name of the installed task to trigger (string, required)
+- `namespace`: Namespace where the task is located (string, optional, default: "default")
+- `params`: Parameters to pass to the task (object, optional)
+
+#### `trigger_artifacthub_pipeline` – Trigger a Pipeline installed from Artifact Hub
+- `name`: Name of the installed pipeline to trigger (string, required)
+- `namespace`: Namespace where the pipeline is located (string, optional, default: "default")
+- `params`: Parameters to pass to the pipeline (object, optional)
