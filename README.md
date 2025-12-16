@@ -1,4 +1,4 @@
-# Tektoncd Model Context Protocol server
+# Tekton Model Context Protocol server
 
 *This project is in its early stages, and the README is currently minimal.*
 
