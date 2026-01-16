@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -11,8 +12,13 @@ import (
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonClientSet "github.com/tektoncd/pipeline/pkg/client/injection/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 )
+
+func init() {
+	utilruntime.Must(v1.AddToScheme(scheme.Scheme))
+}
 
 type artifactHubSearchParams struct {
 	Query string `json:"query"`
@@ -44,7 +50,7 @@ func listArtifactHubPipelines() *mcp.ServerTool {
 func installArtifactHubTask() (*mcp.ServerTool, error) {
 	return mcp.NewServerTool(
 		"install_artifacthub_task",
-		"Install and trigger a Tekton task from Artifact Hub to the cluster",
+		"Install a Tekton task from Artifact Hub to the cluster. The packageId must be in the format 'tekton-task/{repository-name}/{package-name}', for example: 'tekton-task/kubevirt-tekton-tasks/create-vm-from-manifest'. You can find the correct packageId in the output of list_artifacthub_tasks.",
 		handlerInstallArtifactHubTask,
 	), nil
 }
@@ -52,7 +58,7 @@ func installArtifactHubTask() (*mcp.ServerTool, error) {
 func installArtifactHubPipeline() (*mcp.ServerTool, error) {
 	return mcp.NewServerTool(
 		"install_artifacthub_pipeline",
-		"Install and trigger a Tekton pipeline from Artifact Hub to the cluster",
+		"Install a Tekton pipeline from Artifact Hub to the cluster. The packageId must be in the format 'tekton-pipeline/{repository-name}/{package-name}', for example: 'tekton-pipeline/kubevirt-tekton-tasks/windows-installer'. You can find the correct packageId in the output of list_artifacthub_pipelines.",
 		handlerInstallArtifactHubPipeline,
 	), nil
 }
@@ -84,7 +90,9 @@ func handlerListArtifactHubTasks(
 
 	for i, pkg := range resp.Packages {
 		output.WriteString(fmt.Sprintf("%d. **%s** (v%s)\n", i+1, pkg.DisplayName, pkg.Version))
-		output.WriteString(fmt.Sprintf("   ID: %s\n", pkg.PackageID))
+		// Show the installable package ID format: tekton-task/{repo-name}/{package-name}
+		installableID := fmt.Sprintf("tekton-task/%s/%s", pkg.Repository.Name, pkg.NormalizedName)
+		output.WriteString(fmt.Sprintf("   Install ID: %s\n", installableID))
 		if pkg.Description != "" {
 			output.WriteString(fmt.Sprintf("   Description: %s\n", pkg.Description))
 		}
@@ -128,7 +136,9 @@ func handlerListArtifactHubPipelines(
 
 	for i, pkg := range resp.Packages {
 		output.WriteString(fmt.Sprintf("%d. **%s** (v%s)\n", i+1, pkg.DisplayName, pkg.Version))
-		output.WriteString(fmt.Sprintf("   ID: %s\n", pkg.PackageID))
+		// Show the installable package ID format: tekton-pipeline/{repo-name}/{package-name}
+		installableID := fmt.Sprintf("tekton-pipeline/%s/%s", pkg.Repository.Name, pkg.NormalizedName)
+		output.WriteString(fmt.Sprintf("   Install ID: %s\n", installableID))
 		if pkg.Description != "" {
 			output.WriteString(fmt.Sprintf("   Description: %s\n", pkg.Description))
 		}
@@ -169,6 +179,12 @@ func handlerInstallArtifactHubTask(
 	if pkg.ContentURL == "" {
 		return result("Error: Package does not have a content URL"), nil
 	}
+
+	// Log the URL being fetched for security auditing
+	slog.Info("Installing Tekton task from Artifact Hub",
+		"packageId", request.Arguments.PackageID,
+		"contentUrl", pkg.ContentURL,
+		"namespace", request.Arguments.Namespace)
 
 	// Get package content (YAML definition)
 	content, err := client.GetPackageContent(ctx, pkg.ContentURL)
@@ -231,6 +247,12 @@ func handlerInstallArtifactHubPipeline(
 	if pkg.ContentURL == "" {
 		return result("Error: Package does not have a content URL"), nil
 	}
+
+	// Log the URL being fetched for security auditing
+	slog.Info("Installing Tekton pipeline from Artifact Hub",
+		"packageId", request.Arguments.PackageID,
+		"contentUrl", pkg.ContentURL,
+		"namespace", request.Arguments.Namespace)
 
 	// Get package content (YAML definition)
 	content, err := client.GetPackageContent(ctx, pkg.ContentURL)
@@ -325,20 +347,8 @@ func handlerTriggerArtifactHubTask(
 	if len(request.Arguments.Params) > 0 {
 		for key, value := range request.Arguments.Params {
 			param := v1.Param{
-				Name: key,
-			}
-			// Convert value to string
-			switch v := value.(type) {
-			case string:
-				param.Value.StringVal = v
-			case int:
-				param.Value.StringVal = strconv.Itoa(v)
-			case float64:
-				param.Value.StringVal = strconv.FormatFloat(v, 'f', -1, 64)
-			case bool:
-				param.Value.StringVal = strconv.FormatBool(v)
-			default:
-				param.Value.StringVal = fmt.Sprintf("%v", v)
+				Name:  key,
+				Value: convertToParamValue(value),
 			}
 			taskRun.Spec.Params = append(taskRun.Spec.Params, param)
 		}
@@ -385,20 +395,8 @@ func handlerTriggerArtifactHubPipeline(
 	if len(request.Arguments.Params) > 0 {
 		for key, value := range request.Arguments.Params {
 			param := v1.Param{
-				Name: key,
-			}
-			// Convert value to string
-			switch v := value.(type) {
-			case string:
-				param.Value.StringVal = v
-			case int:
-				param.Value.StringVal = strconv.Itoa(v)
-			case float64:
-				param.Value.StringVal = strconv.FormatFloat(v, 'f', -1, 64)
-			case bool:
-				param.Value.StringVal = strconv.FormatBool(v)
-			default:
-				param.Value.StringVal = fmt.Sprintf("%v", v)
+				Name:  key,
+				Value: convertToParamValue(value),
 			}
 			pipelineRun.Spec.Params = append(pipelineRun.Spec.Params, param)
 		}
@@ -411,4 +409,82 @@ func handlerTriggerArtifactHubPipeline(
 
 	return result(fmt.Sprintf("Successfully triggered PipelineRun '%s' for pipeline '%s' in namespace '%s'",
 		createdPipelineRun.Name, request.Arguments.Name, request.Arguments.Namespace)), nil
+}
+
+// convertToParamValue converts an interface{} value to a Tekton ParamValue,
+// handling string, array, and object types appropriately.
+func convertToParamValue(value interface{}) v1.ParamValue {
+	switch v := value.(type) {
+	case string:
+		return v1.ParamValue{
+			Type:      v1.ParamTypeString,
+			StringVal: v,
+		}
+	case []interface{}:
+		// Handle array type
+		arrayVal := make([]string, 0, len(v))
+		for _, item := range v {
+			arrayVal = append(arrayVal, convertToString(item))
+		}
+		return v1.ParamValue{
+			Type:     v1.ParamTypeArray,
+			ArrayVal: arrayVal,
+		}
+	case []string:
+		return v1.ParamValue{
+			Type:     v1.ParamTypeArray,
+			ArrayVal: v,
+		}
+	case map[string]interface{}:
+		// Handle object type
+		objectVal := make(map[string]string, len(v))
+		for k, val := range v {
+			objectVal[k] = convertToString(val)
+		}
+		return v1.ParamValue{
+			Type:      v1.ParamTypeObject,
+			ObjectVal: objectVal,
+		}
+	case map[string]string:
+		return v1.ParamValue{
+			Type:      v1.ParamTypeObject,
+			ObjectVal: v,
+		}
+	case int:
+		return v1.ParamValue{
+			Type:      v1.ParamTypeString,
+			StringVal: strconv.Itoa(v),
+		}
+	case float64:
+		return v1.ParamValue{
+			Type:      v1.ParamTypeString,
+			StringVal: strconv.FormatFloat(v, 'f', -1, 64),
+		}
+	case bool:
+		return v1.ParamValue{
+			Type:      v1.ParamTypeString,
+			StringVal: strconv.FormatBool(v),
+		}
+	default:
+		return v1.ParamValue{
+			Type:      v1.ParamTypeString,
+			StringVal: fmt.Sprintf("%v", v),
+		}
+	}
+}
+
+// convertToString converts an interface{} to a string representation
+func convertToString(v interface{}) string {
+	switch val := v.(type) {
+	case string:
+		return val
+	case int:
+		return strconv.Itoa(val)
+	case float64:
+		return strconv.FormatFloat(val, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(val)
+	default:
+		return fmt.Sprintf("%v", val)
+	}
 }
