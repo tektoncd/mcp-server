@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -13,7 +14,16 @@ import (
 )
 
 const (
-	DefaultAPIURL      = "https://artifacthub.io/api/v1"
+	// defaultAPIURL is the default Artifact Hub API URL
+	defaultAPIURL = "https://artifacthub.io/api/v1"
+
+	// KindTektonTask is the Artifact Hub kind ID for Tekton tasks
+	KindTektonTask = "7"
+
+	// KindTektonPipeline is the Artifact Hub kind ID for Tekton pipelines
+	KindTektonPipeline = "11"
+
+	// Descriptive names for display purposes
 	TektonTaskKind     = "Tekton task"
 	TektonPipelineKind = "Tekton pipeline"
 )
@@ -123,17 +133,12 @@ type SearchOptions struct {
 	Offset       int
 }
 
-// NewClient creates a new Artifact Hub client
+// NewClient creates a new Artifact Hub client with the default API URL
 func NewClient() *Client {
-	return &Client{
-		baseURL: DefaultAPIURL,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-	}
+	return NewClientWithURL(defaultAPIURL)
 }
 
-// NewClientWithURL creates a new Artifact Hub client with custom URL
+// NewClientWithURL creates a new Artifact Hub client with a custom URL
 func NewClientWithURL(baseURL string) *Client {
 	return &Client{
 		baseURL: baseURL,
@@ -278,6 +283,9 @@ func (c *Client) GetPackageContent(ctx context.Context, contentURL string) (stri
 		return "", errors.New("content URL is empty")
 	}
 
+	// Log the URL being fetched for security auditing
+	slog.Info("Fetching package content from Artifact Hub", "url", contentURL)
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, contentURL, nil)
 	if err != nil {
 		return "", err
@@ -305,7 +313,7 @@ func (c *Client) GetPackageContent(ctx context.Context, contentURL string) (stri
 func (c *Client) SearchTektonTasks(ctx context.Context, text string, limit int) (*SearchResponse, error) {
 	opts := SearchOptions{
 		Text:  text,
-		Kinds: []string{"7"}, // Tekton task kind ID
+		Kinds: []string{KindTektonTask},
 		Limit: limit,
 		Sort:  "relevance",
 	}
@@ -316,7 +324,7 @@ func (c *Client) SearchTektonTasks(ctx context.Context, text string, limit int) 
 func (c *Client) SearchTektonPipelines(ctx context.Context, text string, limit int) (*SearchResponse, error) {
 	opts := SearchOptions{
 		Text:  text,
-		Kinds: []string{"7"}, // Tekton pipeline kind ID (same as tasks)
+		Kinds: []string{KindTektonPipeline},
 		Limit: limit,
 		Sort:  "relevance",
 	}
