@@ -1,10 +1,12 @@
 approvers:
+- jbpratt
 - vdemeester
 - chmouel
 - waveywaves
 - jkhelil
 
 reviewers:
+- jbpratt
 - savitaashture
 - anithapriyanatarajan
 - vdemeester
