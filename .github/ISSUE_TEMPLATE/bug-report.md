@@ -16,6 +16,24 @@ labels: kind/bug
 
 # Additional Info
 
+- MCP Server version (image tag/digest or binary version/commit):
+
+```
+(paste your output here)
+```
+
+- MCP client and transport:
+
+```
+(paste the client name/version and transport here)
+```
+
+- Deployment mode and relevant configuration:
+
+```
+(local binary, container, or Kubernetes; remove sensitive values)
+```
+
 - Kubernetes version:
 
   **Output of `kubectl version`:**
