@@ -1,46 +1,46 @@
-# Contributing to Tekton
+# Contributing to Tekton MCP Server
 
-Thank you for contributing your time and expertise to Tekton. This
-document describes the contribution guidelines for the project.
+Thank you for contributing time and expertise to Tekton MCP Server.
 
-**Note:** Before you start contributing, you must read and abide by our **[Code of Conduct](./code-of-conduct.md)**.
+Before contributing, read and follow the project
+[Code of Conduct](./code-of-conduct.md).
 
+## Develop and test changes
 
-## Contributing to Tekton code
+See [`DEVELOPMENT.md`](./DEVELOPMENT.md) for repository setup, build and test
+commands, local and cluster execution, dependency updates, and debugging.
 
-To set up your environment and begin working on our code, see [Developing for Tekton](./DEVELOPMENT.md).
+The [Tekton community repository](https://github.com/tektoncd/community)
+defines the shared contribution process:
 
-[The `community` repo](https://github.com/tektoncd/community) contains information on the following:
+- [development standards](https://github.com/tektoncd/community/blob/main/standards.md)
+- [contacting the community](https://github.com/tektoncd/community/blob/main/contact.md)
+- [finding work and proposing changes](https://github.com/tektoncd/community/tree/main/process)
+- [code review](https://github.com/tektoncd/community/blob/main/process/README.md#reviews)
+- [contributor ladder](https://github.com/tektoncd/community/blob/main/process/contributor-ladder.md)
 
-- [Development standards](https://github.com/tektoncd/community/blob/main/standards.md), including:
-  - [Writing high quality code](https://github.com/tektoncd/community/blob/main/standards.md#coding-standards)
-  - [Adopting good development principles](https://github.com/tektoncd/community/blob/main/standards.md#principles)
-  - [Writing useful commit messages](https://github.com/tektoncd/community/blob/main/standards.md#commit-messages)
-- [Contacting other contributors](https://github.com/tektoncd/community/blob/main/contact.md)
-- [Tekton development processes](https://github.com/tektoncd/community/tree/main/process#readme), including:
-  - [Finding things to work on](https://github.com/tektoncd/community/tree/main/process#finding-something-to-work-on)
-  - [Proposing new features](https://github.com/tektoncd/community/tree/main/process#proposing-features)
-  - [Performing code reviews](https://github.com/tektoncd/community/tree/main/process#reviews)
-  - [Becoming a community member and maintainer](https://github.com/tektoncd/community/blob/main/process/contributor-ladder.md)
-- [Making changes to the Tekton API](api_compatibility_policy.md#approving-api-changes)
-- [Understanding the Tekton automation infrastructure](https://github.com/tektoncd/plumbing)
+The MCP Server project was proposed in
+[`tektoncd/community#1194`](https://github.com/tektoncd/community/issues/1194).
+Repository reviewers and approvers are listed in [`OWNERS`](./OWNERS).
 
-Additionally, please read the following resources specific to Tekton Pipelines:
+## Submit a pull request
 
-- [Tekton Pipelines GitHub project](https://github.com/orgs/tektoncd/projects/3)
-- [Tekton Pipelines roadmap](roadmap.md)
-- [Tekton Pipelines API compatibility policy](api_compatibility_policy.md)
+1. Work in a focused branch on a personal fork.
+2. Add or update tests for behavior changes.
+3. Run the checks documented in [`DEVELOPMENT.md`](./DEVELOPMENT.md).
+4. Use the pull request template and include an appropriate release-note block.
+5. Address reviewer feedback and keep the branch current with `main`.
 
-For support in contributing to specific areas, contact the relevant [Tekton Pipelines Topical Owner(s)](topical-ownership.md). 
+Use [GitHub issues](https://github.com/tektoncd/mcp-server/issues) for bugs and
+feature proposals. Report security vulnerabilities privately through the
+[project security policy](https://github.com/tektoncd/mcp-server/security/policy),
+not through a public issue.
 
-## Contributing to Tekton documentation
+## Documentation
 
-If you want to contribute to Tekton documentation, see the
-[Tekton Documentation Contributor's Guide](https://github.com/tektoncd/website/blob/main/content/en/docs/Contribute/_index.md).
+User-facing changes should update the relevant repository documentation. For
+changes to the Tekton website, follow the
+[Tekton documentation contributor guide](https://github.com/tektoncd/website/blob/main/content/en/docs/Contribute/_index.md).
 
-This guide describes:
-- The contribution process for documentation
-- Our standards for writing high quality content
-- Our formatting conventions
-
-It also includes a primer for getting started with writing documentation and improving your writing skills.
+Tekton automation and repository infrastructure are maintained in
+[`tektoncd/plumbing`](https://github.com/tektoncd/plumbing).

@@ -1,9 +1,128 @@
 # Tekton Model Context Protocol server
 
-*This project is in its early stages, and the README is currently minimal.*
+Tekton MCP Server exposes Tekton resources to
+[Model Context Protocol (MCP)](https://modelcontextprotocol.io) clients. It
+currently focuses on [`tektoncd/pipeline`](https://github.com/tektoncd/pipeline)
+and supports both stdio and Streamable HTTP transports.
 
-This project provides a [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server for the tektoncd projects.
-It initially focuses on [`tektoncd/pipeline`](https://github.com/tektoncd/pipeline) objects but will over time add support for other tektoncd projects.
+> [!IMPORTANT]
+> This project is under active development. Test it in a non-production cluster
+> and review the access granted to both the server and the connected MCP client.
+
+## Prerequisites
+
+The server needs:
+
+- access to a Kubernetes cluster with
+  [Tekton Pipelines](https://tekton.dev/docs/installation/pipelines/) installed
+- a kubeconfig for local use, or an in-cluster service account when deployed to
+  Kubernetes
+- [Go](https://go.dev/doc/install) at the version in [`go.mod`](./go.mod) when
+  building from source
+
+[`kubectl`](https://kubernetes.io/docs/tasks/tools/) and
+[`ko`](https://ko.build/) are also required to deploy the manifests from a
+source checkout.
+
+## Build from source
+
+```shell
+git clone https://github.com/tektoncd/mcp-server.git
+cd mcp-server
+mkdir -p bin
+go build -mod=vendor -o bin/tekton-mcp-server ./cmd/tekton-mcp-server
+```
+
+The server uses the standard Kubernetes client configuration. Confirm that
+`kubectl config current-context` points to the intended cluster before running
+it.
+
+## Run locally
+
+### stdio
+
+Use stdio when an MCP client starts the server as a subprocess:
+
+```shell
+./bin/tekton-mcp-server -transport=stdio
+```
+
+A typical MCP client entry looks like this; adapt the surrounding configuration
+to the client being used:
+
+```json
+{
+  "mcpServers": {
+    "tekton": {
+      "command": "/absolute/path/to/bin/tekton-mcp-server",
+      "args": ["-transport=stdio"]
+    }
+  }
+}
+```
+
+### Streamable HTTP
+
+Bind to localhost for local development:
+
+```shell
+./bin/tekton-mcp-server -transport=http -address=127.0.0.1:8080
+```
+
+Connect the MCP client to `http://127.0.0.1:8080`.
+
+## Deploy to Kubernetes
+
+Set `KO_DOCKER_REPO` to a registry accessible to the cluster, then build the
+image and apply the manifests:
+
+```shell
+export KO_DOCKER_REPO=registry.example.com/YOUR-USER/mcp-server
+ko apply -R -f config/
+kubectl -n tekton-mcp rollout status deployment/tekton-mcp-server
+```
+
+For local access to the in-cluster service:
+
+```shell
+kubectl -n tekton-mcp port-forward service/tekton-mcp-server 8080:8080
+```
+
+`ko delete -R -f config/` removes every included resource, including the
+`tekton-mcp` namespace and anything else stored in that namespace. Use it only
+when that destructive cleanup is intended.
+
+## Compatibility
+
+The server uses Tekton `v1` resources and is built and tested against the
+Kubernetes, Tekton Pipelines, and MCP Go SDK versions recorded in
+[`go.mod`](./go.mod). Until a broader compatibility matrix is published, test
+the server with the exact cluster versions on which it will run.
+
+## Security
+
+The server can read and modify Tekton resources using the permissions of its
+kubeconfig or service account. Several tools create, patch, start, restart, and
+delete resources, so use a dedicated least-privilege identity and a disposable
+namespace while evaluating it.
+
+The HTTP transport does not provide authentication or TLS. Do not expose it to
+an untrusted network without an authenticating, TLS-terminating proxy. The
+included development manifests grant cluster-wide permissions and should be
+reviewed before use on a shared cluster.
+
+Report vulnerabilities privately through the
+[project security policy](https://github.com/tektoncd/mcp-server/security/policy).
+Do not open a public issue for a suspected vulnerability.
+
+## Development and contributing
+
+See [`DEVELOPMENT.md`](./DEVELOPMENT.md) for build, test, dependency update,
+cluster deployment, and debugging instructions. Contributions follow the
+process in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
+The project was proposed and accepted in
+[`tektoncd/community#1194`](https://github.com/tektoncd/community/issues/1194).
 
 ## Tools
 
