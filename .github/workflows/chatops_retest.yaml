@@ -11,4 +11,5 @@ jobs:
   retest:
     name: Rerun Failed Actions
     uses: tektoncd/plumbing/.github/workflows/_chatops_retest.yml@c9d6729a374829a3486b3b4a3c7c67d8b0926f04
-    secrets: inherit
+    # The pinned shared workflow uses CHATOPS_TOKEN without declaring named secrets.
+    secrets: inherit  # zizmor: ignore[secrets-inherit]
