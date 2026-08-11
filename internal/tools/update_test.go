@@ -171,7 +171,7 @@ func TestUpdateOperationsErrors(t *testing.T) {
 				"name":      "test-pipeline",
 				"namespace": "default",
 			},
-			expected: "Error: Name and YAML definition are required",
+			expected: "missing properties: [\"yaml\"]",
 		},
 		{
 			name: "patch_pipeline_invalid_patch",

@@ -6,58 +6,44 @@ package jsonrpc2
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/internal/json"
+	"github.com/modelcontextprotocol/go-sdk/internal/mcpgodebug"
 )
 
-// Binder builds a connection configuration.
-// This may be used in servers to generate a new configuration per connection.
-// ConnectionOptions itself implements Binder returning itself unmodified, to
-// allow for the simple cases where no per connection information is needed.
-type Binder interface {
-	// Bind returns the ConnectionOptions to use when establishing the passed-in
-	// Connection.
-	//
-	// The connection is not ready to use when Bind is called,
-	// but Bind may close it without reading or writing to it.
-	Bind(context.Context, *Connection) ConnectionOptions
-}
-
-// A BinderFunc implements the Binder interface for a standalone Bind function.
-type BinderFunc func(context.Context, *Connection) ConnectionOptions
-
-func (f BinderFunc) Bind(ctx context.Context, c *Connection) ConnectionOptions {
-	return f(ctx, c)
-}
-
-var _ Binder = BinderFunc(nil)
-
-// ConnectionOptions holds the options for new connections.
-type ConnectionOptions struct {
-	// Framer allows control over the message framing and encoding.
-	// If nil, HeaderFramer will be used.
-	Framer Framer
-	// Preempter allows registration of a pre-queue message handler.
-	// If nil, no messages will be preempted.
-	Preempter Preempter
-	// Handler is used as the queued message handler for inbound messages.
-	// If nil, all responses will be ErrNotHandled.
-	Handler Handler
-	// OnInternalError, if non-nil, is called with any internal errors that occur
-	// while serving the connection, such as protocol errors or invariant
-	// violations. (If nil, internal errors result in panics.)
-	OnInternalError func(error)
-}
+// nomethodnotfoundcodeinerror is a compatibility parameter that restores the
+// pre-fix behavior of [processResult], where wrapped [ErrNotHandled] or
+// [ErrMethodNotFound] errors returned by request handlers were not
+// recognized as "method not found" signals. The original switch statement
+// compared sentinel errors with ==, which never matched errors returned via
+// fmt.Errorf("%w: ...", ErrNotHandled, ...) — including the ones produced
+// by checkRequest. As a result the wire error response carried code 0
+// instead of code -32601. The fix uses errors.Is to recognize wrapped
+// sentinels and append the method name to the message.
+//
+// To restore the previous behavior, set MCPGODEBUG=nomethodnotfoundcodeinerror=1.
+// This option will be removed in a future SDK version.
+// See the documentation for the mcpgodebug package for instructions on how
+// to use it.
+var nomethodnotfoundcodeinerror = mcpgodebug.Value("nomethodnotfoundcodeinerror")
 
 // Connection manages the jsonrpc2 protocol, connecting responses back to their
-// calls.
-// Connection is bidirectional; it does not have a designated server or client
-// end.
+// calls. Connection is bidirectional; it does not have a designated server or
+// client end.
+//
+// Note that the word 'Connection' is overloaded: the mcp.Connection represents
+// the bidirectional stream of messages between client an server. The
+// jsonrpc2.Connection layers RPC logic on top of that stream, dispatching RPC
+// handlers, and correlating requests with responses from the peer.
+//
+// Some of the complexity of the Connection type is grown out of its usage in
+// gopls: it could probably be simplified based on our usage in MCP.
 type Connection struct {
 	seq int64 // must only be accessed using atomic operations
 
@@ -65,8 +51,7 @@ type Connection struct {
 	state   inFlightState // accessed only in updateInFlight
 	done    chan struct{} // closed (under stateMu) when state.closed is true and all goroutines have completed
 
-	writer chan Writer // 1-buffered; stores the writer when not in use
-
+	writer  Writer
 	handler Handler
 
 	onInternalError func(error)
@@ -125,7 +110,7 @@ func (c *Connection) updateInFlight(f func(*inFlightState)) {
 		// that and avoided making any updates that would cause the state to be
 		// non-idle.)
 		if !s.idle() {
-			panic("jsonrpc2_v2: updateInFlight transitioned to non-idle when already done")
+			panic("jsonrpc2: updateInFlight transitioned to non-idle when already done")
 		}
 		return
 	default:
@@ -190,9 +175,28 @@ type incomingRequest struct {
 	cancel   context.CancelFunc
 }
 
-// Bind returns the options unmodified.
-func (o ConnectionOptions) Bind(context.Context, *Connection) ConnectionOptions {
-	return o
+// Reader abstracts the transport mechanics from the JSON RPC protocol.
+// A Connection reads messages from the reader it was provided on construction,
+// and assumes that each call to Read fully transfers a single message,
+// or returns an error.
+//
+// A reader is not safe for concurrent use, it is expected it will be used by
+// a single Connection in a safe manner.
+type Reader interface {
+	// Read gets the next message from the stream.
+	Read(context.Context) (Message, error)
+}
+
+// Writer abstracts the transport mechanics from the JSON RPC protocol.
+// A Connection writes messages using the writer it was provided on construction,
+// and assumes that each call to Write fully transfers a single message,
+// or returns an error.
+//
+// A writer must be safe for concurrent use, as writes may occur concurrently
+// in practice: libraries may make calls or respond to requests asynchronously.
+type Writer interface {
+	// Write sends a message to the stream.
+	Write(context.Context, Message) error
 }
 
 // A ConnectionConfig configures a bidirectional jsonrpc2 connection.
@@ -204,64 +208,40 @@ type ConnectionConfig struct {
 	Bind            func(*Connection) Handler // required
 	OnDone          func()                    // optional
 	OnInternalError func(error)               // optional
+
+	// PropagateCancellation controls whether cancellation of the context
+	// passed to [NewConnection] is observable by request handlers.
+	//
+	// By default (false), the connection wraps that context (see [notDone])
+	// so handlers' Done channels do not fire when the connection's root
+	// context is cancelled. Cancellation of an in-flight handler is then
+	// expected to flow only through the jsonrpc2 layer's explicit channels
+	// (the [Preempter] reacting to the peer's cancel notification, or a
+	// transport read/write failure cancelling every in-flight request).
+	//
+	// Set this true when cancellation of the connection's context is itself
+	// a meaningful signal that handlers should react to (for example, when
+	// the connection is tied to a carrier that owns it and whose end means
+	// the request is cancelled).
+	PropagateCancellation bool // optional
 }
 
 // NewConnection creates a new [Connection] object and starts processing
 // incoming messages.
 func NewConnection(ctx context.Context, cfg ConnectionConfig) *Connection {
-	ctx = notDone{ctx}
+	if !cfg.PropagateCancellation {
+		ctx = notDone{ctx}
+	}
 
 	c := &Connection{
 		state:           inFlightState{closer: cfg.Closer},
 		done:            make(chan struct{}),
-		writer:          make(chan Writer, 1),
+		writer:          cfg.Writer,
 		onDone:          cfg.OnDone,
 		onInternalError: cfg.OnInternalError,
 	}
 	c.handler = cfg.Bind(c)
-	c.writer <- cfg.Writer
 	c.start(ctx, cfg.Reader, cfg.Preempter)
-	return c
-}
-
-// bindConnection creates a new connection and runs it.
-//
-// This is used by the Dial and Serve functions to build the actual connection.
-//
-// The connection is closed automatically (and its resources cleaned up) when
-// the last request has completed after the underlying ReadWriteCloser breaks,
-// but it may be stopped earlier by calling Close (for a clean shutdown).
-func bindConnection(bindCtx context.Context, rwc io.ReadWriteCloser, binder Binder, onDone func()) *Connection {
-	// TODO: Should we create a new event span here?
-	// This will propagate cancellation from ctx; should it?
-	ctx := notDone{bindCtx}
-
-	c := &Connection{
-		state:  inFlightState{closer: rwc},
-		done:   make(chan struct{}),
-		writer: make(chan Writer, 1),
-		onDone: onDone,
-	}
-	// It's tempting to set a finalizer on c to verify that the state has gone
-	// idle when the connection becomes unreachable. Unfortunately, the Binder
-	// interface makes that unsafe: it allows the Handler to close over the
-	// Connection, which could create a reference cycle that would cause the
-	// Connection to become uncollectable.
-
-	options := binder.Bind(bindCtx, c)
-	framer := options.Framer
-	if framer == nil {
-		framer = HeaderFramer()
-	}
-	c.handler = options.Handler
-	if c.handler == nil {
-		c.handler = defaultHandler{}
-	}
-	c.onInternalError = options.OnInternalError
-
-	c.writer <- framer.Writer(rwc)
-	reader := framer.Reader(rwc)
-	c.start(ctx, reader, options.Preempter)
 	return c
 }
 
@@ -269,15 +249,12 @@ func (c *Connection) start(ctx context.Context, reader Reader, preempter Preempt
 	c.updateInFlight(func(s *inFlightState) {
 		select {
 		case <-c.done:
-			// Bind already closed the connection; don't start a goroutine to read it.
+			// The connection was already closed; don't start a goroutine to read it.
 			return
 		default:
 		}
 
 		// The goroutine started here will continue until the underlying stream is closed.
-		//
-		// (If the Binder closed the Connection already, this should error out and
-		// return almost immediately.)
 		s.reading = true
 		go c.readIncoming(ctx, reader, preempter)
 	})
@@ -364,17 +341,64 @@ func (c *Connection) Call(ctx context.Context, method string, params any) *Async
 	if err := c.write(ctx, call); err != nil {
 		// Sending failed. We will never get a response, so deliver a fake one if it
 		// wasn't already retired by the connection breaking.
-		c.updateInFlight(func(s *inFlightState) {
-			if s.outgoingCalls[ac.id] == ac {
-				delete(s.outgoingCalls, ac.id)
-				ac.retire(&Response{ID: id, Error: err})
-			} else {
-				// ac was already retired by the readIncoming goroutine:
-				// perhaps our write raced with the Read side of the connection breaking.
-			}
-		})
+		c.Retire(ac, err)
 	}
 	return ac
+}
+
+// Retire stops tracking the call, and reports err as its terminal error.
+//
+// Retire is safe to call multiple times: if the call is already no longer
+// tracked, Retire is a no op.
+func (c *Connection) Retire(ac *AsyncCall, err error) {
+	c.updateInFlight(func(s *inFlightState) {
+		if s.outgoingCalls[ac.id] == ac {
+			delete(s.outgoingCalls, ac.id)
+			ac.retire(&Response{ID: ac.id, Error: err})
+		} else {
+			// ac was already retired elsewhere.
+		}
+	})
+}
+
+// Async, signals that the current jsonrpc2 request may be handled
+// asynchronously to subsequent requests, when ctx is the request context.
+//
+// Async must be called at most once on each request's context (and its
+// descendants).
+func Async(ctx context.Context) {
+	if r, ok := ctx.Value(asyncKey).(*releaser); ok {
+		r.release(false)
+	}
+}
+
+type asyncKeyType struct{}
+
+var asyncKey = asyncKeyType{}
+
+// A releaser implements concurrency safe 'releasing' of async requests. (A
+// request is released when it is allowed to run concurrent with other
+// requests, via a call to [Async].)
+type releaser struct {
+	mu       sync.Mutex
+	ch       chan struct{}
+	released bool
+}
+
+// release closes the associated channel. If soft is set, multiple calls to
+// release are allowed.
+func (r *releaser) release(soft bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.released {
+		if !soft {
+			panic("jsonrpc2.Async called multiple times")
+		}
+	} else {
+		close(r.ch)
+		r.released = true
+	}
 }
 
 type AsyncCall struct {
@@ -387,19 +411,10 @@ type AsyncCall struct {
 // This can be used to cancel the call if needed.
 func (ac *AsyncCall) ID() ID { return ac.id }
 
-// IsReady can be used to check if the result is already prepared.
-// This is guaranteed to return true on a result for which Await has already
-// returned, or a call that failed to send in the first place.
-func (ac *AsyncCall) IsReady() bool {
-	select {
-	case <-ac.ready:
-		return true
-	default:
-		return false
-	}
-}
-
 // retire processes the response to the call.
+//
+// It is an error to call retire more than once: retire is guarded by the
+// connection's outgoingCalls map.
 func (ac *AsyncCall) retire(response *Response) {
 	select {
 	case <-ac.ready:
@@ -413,6 +428,9 @@ func (ac *AsyncCall) retire(response *Response) {
 
 // Await waits for (and decodes) the results of a Call.
 // The response will be unmarshaled from JSON into the result.
+//
+// If the call is cancelled due to context cancellation, the result is
+// ctx.Err().
 func (ac *AsyncCall) Await(ctx context.Context, result any) error {
 	select {
 	case <-ctx.Done():
@@ -426,28 +444,6 @@ func (ac *AsyncCall) Await(ctx context.Context, result any) error {
 		return nil
 	}
 	return json.Unmarshal(ac.response.Result, result)
-}
-
-// Respond delivers a response to an incoming Call.
-//
-// Respond must be called exactly once for any message for which a handler
-// returns ErrAsyncResponse. It must not be called for any other message.
-func (c *Connection) Respond(id ID, result any, err error) error {
-	var req *incomingRequest
-	c.updateInFlight(func(s *inFlightState) {
-		req = s.incomingByID[id]
-	})
-	if req == nil {
-		return c.internalErrorf("Request not found for ID %v", id)
-	}
-
-	if err == ErrAsyncResponse {
-		// Respond is supposed to supply the asynchronous response, so it would be
-		// confusing to call Respond with an error that promises to call Respond
-		// again.
-		err = c.internalErrorf("Respond called with ErrAsyncResponse for %q", req.Method)
-	}
-	return c.processResult("Respond", req, result, err)
 }
 
 // Cancel cancels the Context passed to the Handle call for the inbound message
@@ -468,10 +464,32 @@ func (c *Connection) Cancel(id ID) {
 
 // Wait blocks until the connection is fully closed, but does not close it.
 func (c *Connection) Wait() error {
+	return c.wait(true)
+}
+
+// wait for the connection to close, and aggregates the most cause of its
+// termination, if abnormal.
+//
+// The fromWait argument allows this logic to be shared with Close, where we
+// only want to expose the closeErr.
+//
+// (Previously, Wait also only returned the closeErr, which was misleading if
+// the connection was broken for another reason).
+func (c *Connection) wait(fromWait bool) error {
 	var err error
 	<-c.done
 	c.updateInFlight(func(s *inFlightState) {
-		err = s.closeErr
+		if fromWait {
+			if !errors.Is(s.readErr, io.EOF) {
+				err = s.readErr
+			}
+			if err == nil && !errors.Is(s.writeErr, io.EOF) {
+				err = s.writeErr
+			}
+		}
+		if err == nil {
+			err = s.closeErr
+		}
 	})
 	return err
 }
@@ -487,8 +505,7 @@ func (c *Connection) Close() error {
 	// Stop handling new requests, and interrupt the reader (by closing the
 	// connection) as soon as the active requests finish.
 	c.updateInFlight(func(s *inFlightState) { s.connClosing = true })
-
-	return c.Wait()
+	return c.wait(false)
 }
 
 // readIncoming collects inbound messages from the reader and delivers them, either responding
@@ -531,6 +548,14 @@ func (c *Connection) readIncoming(ctx context.Context, reader Reader, preempter 
 			ac.retire(&Response{ID: id, Error: err})
 		}
 		s.outgoingCalls = nil
+
+		// Cancel any incoming requests still in flight: with the reader gone we
+		// cannot receive cancellation notifications, and likely cannot write a
+		// response either, so parked handlers have nothing useful left to do.
+		// Mirrors the equivalent cleanup on write failure.
+		for _, r := range s.incomingByID {
+			r.cancel()
+		}
 	})
 }
 
@@ -578,11 +603,6 @@ func (c *Connection) acceptRequest(ctx context.Context, msg *Request, preempter 
 
 	if preempter != nil {
 		result, err := preempter.Preempt(req.ctx, req.Request)
-
-		if req.IsCall() && errors.Is(err, ErrAsyncResponse) {
-			// This request will remain in flight until Respond is called for it.
-			return
-		}
 
 		if !errors.Is(err, ErrNotHandled) {
 			c.processResult("Preempt", req, result, err)
@@ -658,21 +678,20 @@ func (c *Connection) handleAsync() {
 			continue
 		}
 
-		result, err := c.handler.Handle(req.ctx, req.Request)
-		c.processResult(c.handler, req, result, err)
+		releaser := &releaser{ch: make(chan struct{})}
+		ctx := context.WithValue(req.ctx, asyncKey, releaser)
+		go func() {
+			defer releaser.release(true)
+			result, err := c.handler.Handle(ctx, req.Request)
+			c.processResult(c.handler, req, result, err)
+		}()
+		<-releaser.ch
 	}
 }
 
 // processResult processes the result of a request and, if appropriate, sends a response.
 func (c *Connection) processResult(from any, req *incomingRequest, result any, err error) error {
-	switch err {
-	case ErrAsyncResponse:
-		if !req.IsCall() {
-			return c.internalErrorf("%#v returned ErrAsyncResponse for a %q Request without an ID", from, req.Method)
-		}
-		return nil // This request is still in flight, so don't record the result yet.
-	case ErrNotHandled, ErrMethodNotFound:
-		// Add detail describing the unhandled method.
+	if nomethodnotfoundcodeinerror != "1" && (errors.Is(err, ErrNotHandled) || errors.Is(err, ErrMethodNotFound)) {
 		err = fmt.Errorf("%w: %q", ErrMethodNotFound, req.Method)
 	}
 
@@ -708,17 +727,17 @@ func (c *Connection) processResult(from any, req *incomingRequest, result any, e
 		} else if err != nil {
 			err = fmt.Errorf("%w: %q notification failed: %v", ErrInternal, req.Method, err)
 		}
-		if err != nil {
-			// TODO: can/should we do anything with this error beyond writing it to the event log?
-			// (Is this the right label to attach to the log?)
-		}
+	}
+	if err != nil {
+		// TODO: can/should we do anything with this error beyond writing it to the event log?
+		// (Is this the right label to attach to the log?)
 	}
 
 	// Cancel the request to free any associated resources.
 	req.cancel()
 	c.updateInFlight(func(s *inFlightState) {
 		if s.incoming == 0 {
-			panic("jsonrpc2_v2: processResult called when incoming count is already zero")
+			panic("jsonrpc2: processResult called when incoming count is already zero")
 		}
 		s.incoming--
 	})
@@ -728,11 +747,24 @@ func (c *Connection) processResult(from any, req *incomingRequest, result any, e
 // write is used by all things that write outgoing messages, including replies.
 // it makes sure that writes are atomic
 func (c *Connection) write(ctx context.Context, msg Message) error {
-	writer := <-c.writer
-	defer func() { c.writer <- writer }()
-	err := writer.Write(ctx, msg)
+	var err error
+	// Fail writes immediately if the connection is shutting down.
+	//
+	// Allow outgoing "notifications" forwarded by the Notify method.
+	// This will allow to send the cancelled notification when the client is shutting down.
+	c.updateInFlight(func(s *inFlightState) {
+		if req, ok := msg.(*Request); ok && !req.IsCall() && s.outgoingNotifications > 0 {
+			return
+		}
+		err = s.shuttingDown(ErrServerClosing)
+	})
+	if err == nil {
+		err = c.writer.Write(ctx, msg)
+	}
 
-	if err != nil && ctx.Err() == nil {
+	// For cancelled or rejected requests, we don't set the writeErr (which would
+	// break the connection). They can just be returned to the caller.
+	if err != nil && ctx.Err() == nil && !errors.Is(err, ErrRejected) {
 		// The call to Write failed, and since ctx.Err() is nil we can't attribute
 		// the failure (even indirectly) to Context cancellation. The writer appears
 		// to be broken, and future writes are likely to also fail.
@@ -768,6 +800,15 @@ func (c *Connection) internalErrorf(format string, args ...any) error {
 }
 
 // notDone is a context.Context wrapper that returns a nil Done channel.
+//
+// Request handlers' contexts are derived from the connection's root context,
+// which by default is wrapped in notDone so a transport-level cancellation
+// does not implicitly cancel every in-flight handler. Cancellation of an
+// in-flight handler is instead expected to flow only through the jsonrpc2
+// layer's explicit channels: the [Preempter] calling [Connection.Cancel] in
+// response to the peer's cancel notification, or the transport itself
+// failing (the read loop exits on EOF or a write fails) — both of which
+// cancel every in-flight incoming request in turn.
 type notDone struct{ ctx context.Context }
 
 func (ic notDone) Value(key any) any {

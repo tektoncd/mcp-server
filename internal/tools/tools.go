@@ -8,6 +8,42 @@ import (
 
 const defaultNamespace = "default"
 
+type callToolParamsFor[T any] struct {
+	Arguments T
+}
+
+type toolHandlerFor[T any] func(context.Context, *mcp.ServerSession, *callToolParamsFor[T]) (*mcp.CallToolResult, error)
+
+type serverTool interface {
+	add(server *mcp.Server)
+}
+
+type serverToolFor[T any] struct {
+	tool    *mcp.Tool
+	handler toolHandlerFor[T]
+}
+
+func newServerTool[T any](name, description string, handler toolHandlerFor[T], schemas ...any) serverTool {
+	tool := &mcp.Tool{Name: name, Description: description}
+	if len(schemas) > 0 {
+		tool.InputSchema = schemas[0]
+	}
+	return &serverToolFor[T]{tool: tool, handler: handler}
+}
+
+func (t *serverToolFor[T]) add(s *mcp.Server) {
+	mcp.AddTool(s, t.tool, func(ctx context.Context, request *mcp.CallToolRequest, input T) (*mcp.CallToolResult, any, error) {
+		result, err := t.handler(ctx, request.Session, &callToolParamsFor[T]{Arguments: input})
+		return result, nil, err
+	})
+}
+
+func addTools(s *mcp.Server, tools ...serverTool) {
+	for _, tool := range tools {
+		tool.add(s)
+	}
+}
+
 func Add(_ context.Context, s *mcp.Server) error {
 	// Start tools
 	startPipelineTool, err := startPipeline()
@@ -121,7 +157,7 @@ func Add(_ context.Context, s *mcp.Server) error {
 	triggerArtifactHubTaskTool := triggerArtifactHubTask()
 	triggerArtifactHubPipelineTool := triggerArtifactHubPipeline()
 
-	s.AddTools(
+	addTools(s,
 		// Existing tools
 		startPipelineTool,
 		startTaskTool,
@@ -169,8 +205,8 @@ func Add(_ context.Context, s *mcp.Server) error {
 	return nil
 }
 
-func result(s string) *mcp.CallToolResultFor[string] {
-	return &mcp.CallToolResultFor[string]{
+func result(s string) *mcp.CallToolResult {
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{&mcp.TextContent{Text: s}},
 	}
 }

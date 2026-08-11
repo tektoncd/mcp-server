@@ -16,47 +16,19 @@ import (
 )
 
 func Add(_ context.Context, s *mcp.Server) {
-	s.AddResourceTemplates(
-		&mcp.ServerResourceTemplate{
-			ResourceTemplate: &mcp.ResourceTemplate{
-				Name:        "Pipeline",
-				URITemplate: "tekton://pipeline/{namespace}/{name}",
-			},
-			Handler: resourceHandler,
-		},
-		&mcp.ServerResourceTemplate{
-			ResourceTemplate: &mcp.ResourceTemplate{
-				Name:        "PipelineRun",
-				URITemplate: "tekton://pipelinerun/{namespace}/{name}",
-			},
-			Handler: resourceHandler,
-		},
-		&mcp.ServerResourceTemplate{
-			ResourceTemplate: &mcp.ResourceTemplate{
-				Name:        "Task",
-				URITemplate: "tekton://task/{namespace}/{name}",
-			},
-			Handler: resourceHandler,
-		},
-		&mcp.ServerResourceTemplate{
-			ResourceTemplate: &mcp.ResourceTemplate{
-				Name:        "TaskRun",
-				URITemplate: "tekton://taskrun/{namespace}/{name}",
-			},
-			Handler: resourceHandler,
-		},
-		&mcp.ServerResourceTemplate{
-			ResourceTemplate: &mcp.ResourceTemplate{
-				Name:        "StepAction",
-				URITemplate: "tekton://stepaction/{namespace}/{name}",
-			},
-			Handler: resourceHandler,
-		},
-	)
+	for _, template := range []*mcp.ResourceTemplate{
+		{Name: "Pipeline", URITemplate: "tekton://pipeline/{namespace}/{name}"},
+		{Name: "PipelineRun", URITemplate: "tekton://pipelinerun/{namespace}/{name}"},
+		{Name: "Task", URITemplate: "tekton://task/{namespace}/{name}"},
+		{Name: "TaskRun", URITemplate: "tekton://taskrun/{namespace}/{name}"},
+		{Name: "StepAction", URITemplate: "tekton://stepaction/{namespace}/{name}"},
+	} {
+		s.AddResourceTemplate(template, resourceHandler)
+	}
 }
 
-func resourceHandler(ctx context.Context, _ *mcp.ServerSession, rrp *mcp.ReadResourceParams) (*mcp.ReadResourceResult, error) {
-	uri := rrp.URI
+func resourceHandler(ctx context.Context, request *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+	uri := request.Params.URI
 	parsed := strings.Split(uri, "/")
 	resourceType := parsed[2]
 	namespace := parsed[3]

@@ -171,7 +171,7 @@ func TestTriggerArtifactHubTask(t *testing.T) {
 			args: map[string]interface{}{
 				"namespace": "default",
 			},
-			expected: "Error: name parameter is required",
+			expected: "missing properties: [\"name\"]",
 		},
 		{
 			name: "trigger with default namespace",
@@ -269,7 +269,7 @@ func TestTriggerArtifactHubPipeline(t *testing.T) {
 			args: map[string]interface{}{
 				"namespace": "default",
 			},
-			expected: "Error: name parameter is required",
+			expected: "missing properties: [\"name\"]",
 		},
 	}
 
@@ -476,7 +476,7 @@ func TestInstallArtifactHubTask_MissingPackageID(t *testing.T) {
 		t.Fatal("Expected text content")
 	}
 
-	if !strings.Contains(content.Text, "Error: packageId parameter is required") {
+	if !strings.Contains(content.Text, "missing properties: [\"packageId\"]") {
 		t.Errorf("Expected error about missing packageId, got %q", content.Text)
 	}
 }
@@ -505,7 +505,7 @@ func TestInstallArtifactHubPipeline_MissingPackageID(t *testing.T) {
 		t.Fatal("Expected text content")
 	}
 
-	if !strings.Contains(content.Text, "Error: packageId parameter is required") {
+	if !strings.Contains(content.Text, "missing properties: [\"packageId\"]") {
 		t.Errorf("Expected error about missing packageId, got %q", content.Text)
 	}
 }

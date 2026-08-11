@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/modelcontextprotocol/go-sdk/jsonschema"
+	"github.com/google/jsonschema-go/jsonschema"
 	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	pipelineclient "github.com/tektoncd/pipeline/pkg/client/injection/client"
@@ -21,12 +21,12 @@ const (
 
 type updatePipelineParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 	Yaml      string `json:"yaml"`
 }
 
-func updatePipeline() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[updatePipelineParams]()
+func updatePipeline() (serverTool, error) {
+	scheme, err := jsonschema.For[updatePipelineParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -37,19 +37,19 @@ func updatePipeline() (*mcp.ServerTool, error) {
 	scheme.Properties["yaml"].Description = "Updated YAML definition of the Pipeline"
 	scheme.Required = []string{"name", "yaml"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"update_pipeline",
 		"Update an existing Pipeline",
 		handlerUpdatePipeline,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerUpdatePipeline(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[updatePipelineParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[updatePipelineParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
@@ -87,12 +87,12 @@ func handlerUpdatePipeline(
 
 type updateTaskParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 	Yaml      string `json:"yaml"`
 }
 
-func updateTask() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[updateTaskParams]()
+func updateTask() (serverTool, error) {
+	scheme, err := jsonschema.For[updateTaskParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -103,19 +103,19 @@ func updateTask() (*mcp.ServerTool, error) {
 	scheme.Properties["yaml"].Description = "Updated YAML definition of the Task"
 	scheme.Required = []string{"name", "yaml"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"update_task",
 		"Update an existing Task",
 		handlerUpdateTask,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerUpdateTask(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[updateTaskParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[updateTaskParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
@@ -153,12 +153,12 @@ func handlerUpdateTask(
 
 type patchPipelineParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 	Patch     string `json:"patch"`
 }
 
-func patchPipeline() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[patchPipelineParams]()
+func patchPipeline() (serverTool, error) {
+	scheme, err := jsonschema.For[patchPipelineParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -169,19 +169,19 @@ func patchPipeline() (*mcp.ServerTool, error) {
 	scheme.Properties["patch"].Description = "JSON patch to apply to the Pipeline"
 	scheme.Required = []string{"name", "patch"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"patch_pipeline",
 		"Apply a JSON patch to an existing Pipeline",
 		handlerPatchPipeline,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerPatchPipeline(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[patchPipelineParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[patchPipelineParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 	if namespace == "" {

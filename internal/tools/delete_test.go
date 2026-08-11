@@ -168,7 +168,7 @@ func TestDeleteOperationsErrors(t *testing.T) {
 			args: map[string]interface{}{
 				"namespace": "default",
 			},
-			expected: "Error: Pipeline name is required",
+			expected: "missing properties: [\"name\"]",
 		},
 		{
 			name: "delete_task_not_found",
@@ -185,7 +185,7 @@ func TestDeleteOperationsErrors(t *testing.T) {
 			args: map[string]interface{}{
 				"namespace": "default",
 			},
-			expected: "Error: PipelineRun name is required",
+			expected: "missing properties: [\"name\"]",
 		},
 	}
 

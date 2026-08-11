@@ -5,274 +5,190 @@
 package mcp
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"slices"
+	"strings"
 
-	"github.com/modelcontextprotocol/go-sdk/jsonschema"
+	"github.com/google/jsonschema-go/jsonschema"
+	internaljson "github.com/modelcontextprotocol/go-sdk/internal/json"
 )
 
 // A ToolHandler handles a call to tools/call.
-// [CallToolParams.Arguments] will contain a map[string]any that has been validated
-// against the input schema.
-// TODO: Perhaps this should be an alias for ToolHandlerFor[map[string]any, map[string]any]?
-type ToolHandler func(context.Context, *ServerSession, *CallToolParamsFor[map[string]any]) (*CallToolResult, error)
+//
+// This is a low-level API, for use with [Server.AddTool]. It does not do any
+// pre- or post-processing of the request or result: the params contain raw
+// arguments, no input validation is performed, and the result is returned to
+// the user as-is, without any validation of the output.
+//
+// Most users will write a [ToolHandlerFor] and install it with the generic
+// [AddTool] function.
+//
+// If ToolHandler returns an error, it is treated as a protocol error. By
+// contrast, [ToolHandlerFor] automatically populates [CallToolResult.IsError]
+// and [CallToolResult.Content] accordingly.
+type ToolHandler func(context.Context, *CallToolRequest) (*CallToolResult, error)
 
 // A ToolHandlerFor handles a call to tools/call with typed arguments and results.
-type ToolHandlerFor[In, Out any] func(context.Context, *ServerSession, *CallToolParamsFor[In]) (*CallToolResultFor[Out], error)
-
-// A rawToolHandler is like a ToolHandler, but takes the arguments as as json.RawMessage.
-type rawToolHandler = func(context.Context, *ServerSession, *CallToolParamsFor[json.RawMessage]) (*CallToolResult, error)
-
-// A ServerTool is a tool definition that is bound to a tool handler.
-type ServerTool struct {
-	Tool    *Tool
-	Handler ToolHandler
-	// Set in NewServerTool or Server.addToolsErr.
-	rawHandler rawToolHandler
-	// Resolved tool schemas. Set in Server.addToolsErr.
-	inputResolved, outputResolved *jsonschema.Resolved
-}
-
-// NewServerTool is a helper to make a tool using reflection on the given type parameters.
-// When the tool is called, CallToolParams.Arguments will be of type In.
 //
-// If provided, variadic [ToolOption] values may be used to customize the tool.
+// Use [AddTool] to add a ToolHandlerFor to a server.
 //
-// The input schema for the tool is extracted from the request type for the
-// handler, and used to unmmarshal and validate requests to the handler. This
-// schema may be customized using the [Input] option.
+// Unlike [ToolHandler], [ToolHandlerFor] provides significant functionality
+// out of the box, and enforces that the tool conforms to the MCP spec:
+//   - The In type provides a default input schema for the tool, though it may
+//     be overridden in [AddTool].
+//   - The input value is automatically unmarshaled from req.Params.Arguments.
+//   - The input value is automatically validated against its input schema.
+//     Invalid input is rejected before getting to the handler.
+//   - If the Out type is not the empty interface [any], it provides the
+//     default output schema for the tool (which again may be overridden in
+//     [AddTool]).
+//   - The Out value is used to populate result.StructuredOutput.
+//   - If [CallToolResult.Content] is unset, it is populated with the JSON
+//     content of the output.
+//   - An error result is treated as a tool error, rather than a protocol
+//     error, and is therefore packed into CallToolResult.Content, with
+//     [IsError] set.
 //
-// TODO(jba): check that structured content is set in response.
-func NewServerTool[In, Out any](name, description string, handler ToolHandlerFor[In, Out], opts ...ToolOption) *ServerTool {
-	st, err := newServerToolErr[In, Out](name, description, handler, opts...)
-	if err != nil {
-		panic(fmt.Errorf("NewServerTool(%q): %w", name, err))
-	}
-	return st
+// For these reasons, most users can ignore the [CallToolRequest] argument and
+// [CallToolResult] return values entirely. In fact, it is permissible to
+// return a nil CallToolResult, if you only care about returning a output value
+// or error. The effective result will be populated as described above.
+type ToolHandlerFor[In, Out any] func(_ context.Context, request *CallToolRequest, input In) (result *CallToolResult, output Out, _ error)
+
+// A serverTool is a tool definition that is bound to a tool handler.
+type serverTool struct {
+	tool    *Tool
+	handler ToolHandler
 }
 
-func newServerToolErr[In, Out any](name, description string, handler ToolHandlerFor[In, Out], opts ...ToolOption) (*ServerTool, error) {
-	// TODO: check that In is a struct.
-	ischema, err := jsonschema.For[In]()
-	if err != nil {
-		return nil, err
-	}
-	// TODO: uncomment when output schemas drop.
-	// oschema, err := jsonschema.For[TRes]()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	t := &ServerTool{
-		Tool: &Tool{
-			Name:        name,
-			Description: description,
-			InputSchema: ischema,
-			// OutputSchema: oschema,
-		},
-	}
-	for _, opt := range opts {
-		opt.set(t)
-	}
-
-	t.rawHandler = func(ctx context.Context, ss *ServerSession, rparams *CallToolParamsFor[json.RawMessage]) (*CallToolResult, error) {
-		var args In
-		if rparams.Arguments != nil {
-			if err := unmarshalSchema(rparams.Arguments, t.inputResolved, &args); err != nil {
-				return nil, err
-			}
-		}
-		// TODO(jba): future-proof this copy.
-		params := &CallToolParamsFor[In]{
-			Meta:      rparams.Meta,
-			Name:      rparams.Name,
-			Arguments: args,
-		}
-		res, err := handler(ctx, ss, params)
-		if err != nil {
-			return nil, err
-		}
-
-		var ctr CallToolResult
-		if res != nil {
-			// TODO(jba): future-proof this copy.
-			ctr.Meta = res.Meta
-			ctr.Content = res.Content
-			ctr.IsError = res.IsError
-		}
-		return &ctr, nil
-	}
-	return t, nil
-}
-
-// newRawHandler creates a rawToolHandler for tools not created through NewServerTool.
-// It unmarshals the arguments into a map[string]any and validates them against the
-// schema, then calls the ServerTool's handler.
-func newRawHandler(st *ServerTool) rawToolHandler {
-	if st.Handler == nil {
-		panic("st.Handler is nil")
-	}
-	return func(ctx context.Context, ss *ServerSession, rparams *CallToolParamsFor[json.RawMessage]) (*CallToolResult, error) {
-		// Unmarshal the args into what should be a map.
-		var args map[string]any
-		if rparams.Arguments != nil {
-			if err := unmarshalSchema(rparams.Arguments, st.inputResolved, &args); err != nil {
-				return nil, err
-			}
-		}
-		// TODO: generate copy
-		params := &CallToolParamsFor[map[string]any]{
-			Meta:      rparams.Meta,
-			Name:      rparams.Name,
-			Arguments: args,
-		}
-		res, err := st.Handler(ctx, ss, params)
-		// TODO(rfindley): investigate why server errors are embedded in this strange way,
-		// rather than returned as jsonrpc2 server errors.
-		if err != nil {
-			return &CallToolResult{
-				Content: []Content{&TextContent{Text: err.Error()}},
-				IsError: true,
-			}, nil
-		}
-		return res, nil
-	}
-}
-
-// unmarshalSchema unmarshals data into v and validates the result according to
-// the given resolved schema.
-func unmarshalSchema(data json.RawMessage, resolved *jsonschema.Resolved, v any) error {
+// applySchema validates whether data is valid JSON according to the provided
+// schema, after applying schema defaults.
+//
+// If forOutput is false, the data is treated as tool input: the schema's root
+// type must be "object" and the value is unmarshaled into a map.
+//
+// If forOutput is true, the data is treated as tool output: the schema's root
+// may be of any type (object, array, primitive, composition).
+//
+// Returns the JSON value, augmented with defaults where applicable.
+func applySchema(data json.RawMessage, resolved *jsonschema.Resolved, forOutput bool) (json.RawMessage, error) {
 	// TODO: use reflection to create the struct type to unmarshal into.
 	// Separate validation from assignment.
 
-	// Disallow unknown fields.
-	// Otherwise, if the tool was built with a struct, the client could send extra
-	// fields and json.Unmarshal would ignore them, so the schema would never get
-	// a chance to declare the extra args invalid.
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(v); err != nil {
-		return fmt.Errorf("unmarshaling: %w", err)
+	// Use default JSON marshalling for validation.
+	//
+	// This avoids inconsistent representation due to custom marshallers, such as
+	// time.Time (issue #449).
+	//
+	// For input, unmarshalling into a map ensures that the resulting JSON is
+	// at least {}, even if data is empty. For example, arguments is technically
+	// an optional property of callToolParams, and we still want to apply the
+	// defaults in this case.
+	//
+	// TODO(rfindley): in which cases can resolved be nil?
+	if resolved == nil {
+		return data, nil
 	}
-	// TODO: test with nil args.
-	if resolved != nil {
-		if err := resolved.ApplyDefaults(v); err != nil {
-			return fmt.Errorf("applying defaults from \n\t%s\nto\n\t%s:\n%w", schemaJSON(resolved.Schema()), data, err)
+
+	var unmarshaled any
+	if !forOutput {
+		v := make(map[string]any)
+		if len(data) > 0 {
+			if err := internaljson.Unmarshal(data, &v); err != nil {
+				return nil, fmt.Errorf("unmarshaling arguments: %w", err)
+			}
 		}
-		if err := resolved.Validate(v); err != nil {
-			return fmt.Errorf("validating\n\t%s\nagainst\n\t %s:\n %w", data, schemaJSON(resolved.Schema()), err)
+		unmarshaled = v
+	} else {
+		if len(data) > 0 {
+			if err := internaljson.Unmarshal(data, &unmarshaled); err != nil {
+				return nil, fmt.Errorf("unmarshaling output: %w", err)
+			}
 		}
+	}
+
+	// Apply defaults only when the value is a map: jsonschema.Resolved.ApplyDefaults
+	// only operates on object properties. For object-rooted output schemas,
+	// coerce a nil result (from "null" or empty data) into {} so handlers that
+	// return a typed-nil map still validate.
+	appliedDefaults := false
+	if _, ok := unmarshaled.(map[string]any); ok {
+		if err := resolved.ApplyDefaults(&unmarshaled); err != nil {
+			return nil, fmt.Errorf("applying schema defaults:\n%w", err)
+		}
+		appliedDefaults = true
+	} else if forOutput && unmarshaled == nil && resolved.Schema().Type == "object" {
+		unmarshaled = make(map[string]any)
+		if err := resolved.ApplyDefaults(&unmarshaled); err != nil {
+			return nil, fmt.Errorf("applying schema defaults:\n%w", err)
+		}
+		appliedDefaults = true
+	}
+
+	if err := resolved.Validate(&unmarshaled); err != nil {
+		return nil, err
+	}
+
+	// Re-marshal only when defaults may have changed the value.
+	if !appliedDefaults {
+		return data, nil
+	}
+	out, err := json.Marshal(unmarshaled)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling with defaults: %v", err)
+	}
+	return out, nil
+}
+
+// isObjectJSON reports whether data is a JSON object (i.e., starts with '{'
+// after any leading whitespace). Returns false for arrays, primitives, null,
+// or empty input.
+func isObjectJSON(data json.RawMessage) bool {
+	for _, b := range data {
+		switch b {
+		case ' ', '\t', '\n', '\r':
+			continue
+		case '{':
+			return true
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+// validateToolName checks whether name is a valid tool name, reporting a
+// non-nil error if not.
+func validateToolName(name string) error {
+	if name == "" {
+		return fmt.Errorf("tool name cannot be empty")
+	}
+	if len(name) > 128 {
+		return fmt.Errorf("tool name exceeds maximum length of 128 characters (current: %d)", len(name))
+	}
+	// For consistency with other SDKs, report characters in the order the appear
+	// in the name.
+	var invalidChars []string
+	seen := make(map[rune]bool)
+	for _, r := range name {
+		if !validToolNameRune(r) {
+			if !seen[r] {
+				invalidChars = append(invalidChars, fmt.Sprintf("%q", string(r)))
+				seen[r] = true
+			}
+		}
+	}
+	if len(invalidChars) > 0 {
+		return fmt.Errorf("tool name contains invalid characters: %s", strings.Join(invalidChars, ", "))
 	}
 	return nil
 }
 
-// A ToolOption configures the behavior of a Tool.
-type ToolOption interface {
-	set(*ServerTool)
-}
-
-type toolSetter func(*ServerTool)
-
-func (s toolSetter) set(t *ServerTool) { s(t) }
-
-// Input applies the provided [SchemaOption] configuration to the tool's input
-// schema.
-func Input(opts ...SchemaOption) ToolOption {
-	return toolSetter(func(t *ServerTool) {
-		for _, opt := range opts {
-			opt.set(t.Tool.InputSchema)
-		}
-	})
-}
-
-// A SchemaOption configures a jsonschema.Schema.
-type SchemaOption interface {
-	set(s *jsonschema.Schema)
-}
-
-type schemaSetter func(*jsonschema.Schema)
-
-func (s schemaSetter) set(schema *jsonschema.Schema) { s(schema) }
-
-// Property configures the schema for the property of the given name.
-// If there is no such property in the schema, it is created.
-func Property(name string, opts ...SchemaOption) SchemaOption {
-	return schemaSetter(func(schema *jsonschema.Schema) {
-		propSchema, ok := schema.Properties[name]
-		if !ok {
-			propSchema = new(jsonschema.Schema)
-			schema.Properties[name] = propSchema
-		}
-		// Apply the options, with special handling for Required, as it needs to be
-		// set on the parent schema.
-		for _, opt := range opts {
-			if req, ok := opt.(required); ok {
-				if req {
-					if !slices.Contains(schema.Required, name) {
-						schema.Required = append(schema.Required, name)
-					}
-				} else {
-					schema.Required = slices.DeleteFunc(schema.Required, func(s string) bool {
-						return s == name
-					})
-				}
-			} else {
-				opt.set(propSchema)
-			}
-		}
-	})
-}
-
-// Required sets whether the associated property is required. It is only valid
-// when used in a [Property] option: using Required outside of Property panics.
-func Required(v bool) SchemaOption {
-	return required(v)
-}
-
-// required must be a distinguished type as it needs special handling to mutate
-// the parent schema, and to mutate prompt arguments.
-type required bool
-
-func (required) set(s *jsonschema.Schema) {
-	panic("use of required outside of Property")
-}
-
-// Enum sets the provided values as the "enum" value of the schema.
-func Enum(values ...any) SchemaOption {
-	return schemaSetter(func(s *jsonschema.Schema) {
-		s.Enum = values
-	})
-}
-
-// Description sets the provided schema description.
-func Description(desc string) SchemaOption {
-	return description(desc)
-}
-
-// description must be a distinguished type so that it can be handled by prompt
-// options.
-type description string
-
-func (d description) set(s *jsonschema.Schema) {
-	s.Description = string(d)
-}
-
-// Schema overrides the inferred schema with a shallow copy of the given
-// schema.
-func Schema(schema *jsonschema.Schema) SchemaOption {
-	return schemaSetter(func(s *jsonschema.Schema) {
-		*s = *schema
-	})
-}
-
-// schemaJSON returns the JSON value for s as a string, or a string indicating an error.
-func schemaJSON(s *jsonschema.Schema) string {
-	m, err := json.Marshal(s)
-	if err != nil {
-		return fmt.Sprintf("<!%s>", err)
-	}
-	return string(m)
+// validToolNameRune reports whether r is valid within tool names.
+func validToolNameRune(r rune) bool {
+	return (r >= 'a' && r <= 'z') ||
+		(r >= 'A' && r <= 'Z') ||
+		(r >= '0' && r <= '9') ||
+		r == '_' || r == '-' || r == '.'
 }

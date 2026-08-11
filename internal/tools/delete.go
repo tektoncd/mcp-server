@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/modelcontextprotocol/go-sdk/jsonschema"
+	"github.com/google/jsonschema-go/jsonschema"
 	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	pipelineclient "github.com/tektoncd/pipeline/pkg/client/injection/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,11 +13,11 @@ import (
 
 type deletePipelineParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
-func deletePipeline() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[deletePipelineParams]()
+func deletePipeline() (serverTool, error) {
+	scheme, err := jsonschema.For[deletePipelineParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -27,19 +27,19 @@ func deletePipeline() (*mcp.ServerTool, error) {
 	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
 	scheme.Required = []string{"name"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"delete_pipeline",
 		"Delete a Pipeline",
 		handlerDeletePipeline,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerDeletePipeline(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[deletePipelineParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[deletePipelineParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
@@ -61,11 +61,11 @@ func handlerDeletePipeline(
 
 type deleteTaskParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
-func deleteTask() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[deleteTaskParams]()
+func deleteTask() (serverTool, error) {
+	scheme, err := jsonschema.For[deleteTaskParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -75,19 +75,19 @@ func deleteTask() (*mcp.ServerTool, error) {
 	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
 	scheme.Required = []string{"name"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"delete_task",
 		"Delete a Task",
 		handlerDeleteTask,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerDeleteTask(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[deleteTaskParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[deleteTaskParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
@@ -109,11 +109,11 @@ func handlerDeleteTask(
 
 type deletePipelineRunParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
-func deletePipelineRun() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[deletePipelineRunParams]()
+func deletePipelineRun() (serverTool, error) {
+	scheme, err := jsonschema.For[deletePipelineRunParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -123,19 +123,19 @@ func deletePipelineRun() (*mcp.ServerTool, error) {
 	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
 	scheme.Required = []string{"name"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"delete_pipelinerun",
 		"Delete a PipelineRun",
 		handlerDeletePipelineRun,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerDeletePipelineRun(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[deletePipelineRunParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[deletePipelineRunParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
@@ -157,11 +157,11 @@ func handlerDeletePipelineRun(
 
 type deleteTaskRunParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
-func deleteTaskRun() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[deleteTaskRunParams]()
+func deleteTaskRun() (serverTool, error) {
+	scheme, err := jsonschema.For[deleteTaskRunParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -171,19 +171,19 @@ func deleteTaskRun() (*mcp.ServerTool, error) {
 	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
 	scheme.Required = []string{"name"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"delete_taskrun",
 		"Delete a TaskRun",
 		handlerDeleteTaskRun,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerDeleteTaskRun(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[deleteTaskRunParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[deleteTaskRunParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
@@ -204,13 +204,13 @@ func handlerDeleteTaskRun(
 }
 
 type deleteAllPipelineRunsParams struct {
-	Namespace     string `json:"namespace"`
-	LabelSelector string `json:"labelSelector"`
-	FieldSelector string `json:"fieldSelector"`
+	Namespace     string `json:"namespace,omitempty"`
+	LabelSelector string `json:"labelSelector,omitempty"`
+	FieldSelector string `json:"fieldSelector,omitempty"`
 }
 
-func deleteAllPipelineRuns() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[deleteAllPipelineRunsParams]()
+func deleteAllPipelineRuns() (serverTool, error) {
+	scheme, err := jsonschema.For[deleteAllPipelineRunsParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -220,19 +220,19 @@ func deleteAllPipelineRuns() (*mcp.ServerTool, error) {
 	scheme.Properties["labelSelector"].Description = "Label selector to filter PipelineRuns to delete"
 	scheme.Properties["fieldSelector"].Description = "Field selector to filter PipelineRuns to delete"
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"delete_all_pipelineruns",
 		"Delete multiple PipelineRuns based on selectors",
 		handlerDeleteAllPipelineRuns,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerDeleteAllPipelineRuns(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[deleteAllPipelineRunsParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[deleteAllPipelineRunsParams],
+) (*mcp.CallToolResult, error) {
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
 		namespace = defaultNamespace

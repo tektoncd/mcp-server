@@ -19,9 +19,9 @@ import (
 )
 
 type listParams struct {
-	Namespace     string `json:"namespace"`
-	LabelSelector string `json:"labelSelector"`
-	Prefix        string `json:"prefix"`
+	Namespace     string `json:"namespace,omitempty"`
+	LabelSelector string `json:"labelSelector,omitempty"`
+	Prefix        string `json:"prefix,omitempty"`
 }
 
 func parseLabelSelector(lselector string) (labels.Selector, error) {
@@ -41,8 +41,8 @@ func filterList[T metav1.Object](in []T, prefix string) []T {
 	return out
 }
 
-func listTasks() *mcp.ServerTool {
-	return mcp.NewServerTool(
+func listTasks() serverTool {
+	return newServerTool(
 		"list_tasks",
 		"List tasks in the cluster with filtering options",
 		handlerListTasks,
@@ -52,8 +52,8 @@ func listTasks() *mcp.ServerTool {
 func handlerListTasks(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[listParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[listParams],
+) (*mcp.CallToolResult, error) {
 	namespace := params.Arguments.Namespace
 	lselector := params.Arguments.LabelSelector
 	prefix := params.Arguments.Prefix
@@ -93,8 +93,8 @@ func handlerListTasks(
 	return result(string(jsonData)), nil
 }
 
-func listTaskRuns() *mcp.ServerTool {
-	return mcp.NewServerTool(
+func listTaskRuns() serverTool {
+	return newServerTool(
 		"list_taskruns",
 		"List taskruns in the cluster with filtering options",
 		handlerListTaskRuns,
@@ -104,8 +104,8 @@ func listTaskRuns() *mcp.ServerTool {
 func handlerListTaskRuns(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[listParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[listParams],
+) (*mcp.CallToolResult, error) {
 	namespace := params.Arguments.Namespace
 	lselector := params.Arguments.LabelSelector
 	prefix := params.Arguments.Prefix
@@ -144,8 +144,8 @@ func handlerListTaskRuns(
 	return result(string(jsonData)), nil
 }
 
-func listStepactions() *mcp.ServerTool {
-	return mcp.NewServerTool(
+func listStepactions() serverTool {
+	return newServerTool(
 		"list_stepactions",
 		"List stepactions in the cluster with filtering options",
 		handlerListStepactions,
@@ -155,8 +155,8 @@ func listStepactions() *mcp.ServerTool {
 func handlerListStepactions(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[listParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[listParams],
+) (*mcp.CallToolResult, error) {
 	namespace := params.Arguments.Namespace
 	lselector := params.Arguments.LabelSelector
 	prefix := params.Arguments.Prefix
@@ -195,8 +195,8 @@ func handlerListStepactions(
 	return result(string(jsonData)), nil
 }
 
-func listPipelines() *mcp.ServerTool {
-	return mcp.NewServerTool(
+func listPipelines() serverTool {
+	return newServerTool(
 		"list_pipelines",
 		"List pipelines in the cluster with filtering options",
 		handlerListPipelines,
@@ -206,8 +206,8 @@ func listPipelines() *mcp.ServerTool {
 func handlerListPipelines(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[listParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[listParams],
+) (*mcp.CallToolResult, error) {
 	namespace := params.Arguments.Namespace
 	lselector := params.Arguments.LabelSelector
 	prefix := params.Arguments.Prefix
@@ -246,8 +246,8 @@ func handlerListPipelines(
 	return result(string(jsonData)), nil
 }
 
-func listPipelineRuns() *mcp.ServerTool {
-	return mcp.NewServerTool(
+func listPipelineRuns() serverTool {
+	return newServerTool(
 		"list_pipelineruns",
 		"List pipelineruns in the cluster with filtering options",
 		handlerListPipelineRuns,
@@ -257,8 +257,8 @@ func listPipelineRuns() *mcp.ServerTool {
 func handlerListPipelineRuns(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[listParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[listParams],
+) (*mcp.CallToolResult, error) {
 	namespace := params.Arguments.Namespace
 	lselector := params.Arguments.LabelSelector
 	prefix := params.Arguments.Prefix

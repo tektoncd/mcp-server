@@ -13,44 +13,46 @@ import (
 	"time"
 )
 
+var defaultTerminateDuration = 5 * time.Second // mutable for testing
+
 // A CommandTransport is a [Transport] that runs a command and communicates
 // with it over stdin/stdout, using newline-delimited JSON.
 type CommandTransport struct {
-	cmd *exec.Cmd
-}
-
-// NewCommandTransport returns a [CommandTransport] that runs the given command
-// and communicates with it over stdin/stdout.
-//
-// The resulting transport takes ownership of the command, starting it during
-// [CommandTransport.Connect], and stopping it when the connection is closed.
-func NewCommandTransport(cmd *exec.Cmd) *CommandTransport {
-	return &CommandTransport{cmd}
+	Command *exec.Cmd
+	// TerminateDuration controls how long Close waits after closing stdin
+	// for the process to exit before sending SIGTERM.
+	// If zero or negative, the default of 5s is used.
+	TerminateDuration time.Duration
 }
 
 // Connect starts the command, and connects to it over stdin/stdout.
 func (t *CommandTransport) Connect(ctx context.Context) (Connection, error) {
-	stdout, err := t.cmd.StdoutPipe()
+	stdout, err := t.Command.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
 	stdout = io.NopCloser(stdout) // close the connection by closing stdin, not stdout
-	stdin, err := t.cmd.StdinPipe()
+	stdin, err := t.Command.StdinPipe()
 	if err != nil {
 		return nil, err
 	}
-	if err := t.cmd.Start(); err != nil {
+	if err := t.Command.Start(); err != nil {
 		return nil, err
 	}
-	return newIOConn(&pipeRWC{t.cmd, stdout, stdin}), nil
+	td := t.TerminateDuration
+	if td <= 0 {
+		td = defaultTerminateDuration
+	}
+	return newIOConn(&pipeRWC{t.Command, stdout, stdin, td}), nil
 }
 
 // A pipeRWC is an io.ReadWriteCloser that communicates with a subprocess over
 // stdin/stdout pipes.
 type pipeRWC struct {
-	cmd    *exec.Cmd
-	stdout io.ReadCloser
-	stdin  io.WriteCloser
+	cmd               *exec.Cmd
+	stdout            io.ReadCloser
+	stdin             io.WriteCloser
+	terminateDuration time.Duration
 }
 
 func (s *pipeRWC) Read(p []byte) (n int, err error) {
@@ -81,7 +83,7 @@ func (s *pipeRWC) Close() error {
 		select {
 		case err := <-resChan:
 			return err, true
-		case <-time.After(5 * time.Second):
+		case <-time.After(s.terminateDuration):
 		}
 		return nil, false
 	}

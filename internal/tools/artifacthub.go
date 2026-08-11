@@ -21,42 +21,42 @@ func init() {
 }
 
 type artifactHubSearchParams struct {
-	Query string `json:"query"`
-	Limit int    `json:"limit"`
+	Query string `json:"query,omitempty"`
+	Limit int    `json:"limit,omitempty"`
 }
 
 type artifactHubInstallParams struct {
 	PackageID string `json:"packageId"`
-	Version   string `json:"version"`
-	Namespace string `json:"namespace"`
+	Version   string `json:"version,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
-func listArtifactHubTasks() *mcp.ServerTool {
-	return mcp.NewServerTool(
+func listArtifactHubTasks() serverTool {
+	return newServerTool(
 		"list_artifacthub_tasks",
 		"List Tekton tasks from Artifact Hub with search options",
 		handlerListArtifactHubTasks,
 	)
 }
 
-func listArtifactHubPipelines() *mcp.ServerTool {
-	return mcp.NewServerTool(
+func listArtifactHubPipelines() serverTool {
+	return newServerTool(
 		"list_artifacthub_pipelines",
 		"List Tekton pipelines from Artifact Hub with search options",
 		handlerListArtifactHubPipelines,
 	)
 }
 
-func installArtifactHubTask() (*mcp.ServerTool, error) {
-	return mcp.NewServerTool(
+func installArtifactHubTask() (serverTool, error) {
+	return newServerTool(
 		"install_artifacthub_task",
 		"Install a Tekton task from Artifact Hub to the cluster. The packageId must be in the format 'tekton-task/{repository-name}/{package-name}', for example: 'tekton-task/kubevirt-tekton-tasks/create-vm-from-manifest'. You can find the correct packageId in the output of list_artifacthub_tasks.",
 		handlerInstallArtifactHubTask,
 	), nil
 }
 
-func installArtifactHubPipeline() (*mcp.ServerTool, error) {
-	return mcp.NewServerTool(
+func installArtifactHubPipeline() (serverTool, error) {
+	return newServerTool(
 		"install_artifacthub_pipeline",
 		"Install a Tekton pipeline from Artifact Hub to the cluster. The packageId must be in the format 'tekton-pipeline/{repository-name}/{package-name}', for example: 'tekton-pipeline/kubevirt-tekton-tasks/windows-installer'. You can find the correct packageId in the output of list_artifacthub_pipelines.",
 		handlerInstallArtifactHubPipeline,
@@ -66,8 +66,8 @@ func installArtifactHubPipeline() (*mcp.ServerTool, error) {
 func handlerListArtifactHubTasks(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[artifactHubSearchParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[artifactHubSearchParams],
+) (*mcp.CallToolResult, error) {
 	// Set default limit if not provided
 	if params.Arguments.Limit <= 0 {
 		params.Arguments.Limit = 20
@@ -112,8 +112,8 @@ func handlerListArtifactHubTasks(
 func handlerListArtifactHubPipelines(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	request *mcp.CallToolParamsFor[artifactHubSearchParams],
-) (*mcp.CallToolResultFor[string], error) {
+	request *callToolParamsFor[artifactHubSearchParams],
+) (*mcp.CallToolResult, error) {
 	// Set default limit if not provided
 	if request.Arguments.Limit <= 0 {
 		request.Arguments.Limit = 20
@@ -158,8 +158,8 @@ func handlerListArtifactHubPipelines(
 func handlerInstallArtifactHubTask(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	request *mcp.CallToolParamsFor[artifactHubInstallParams],
-) (*mcp.CallToolResultFor[string], error) {
+	request *callToolParamsFor[artifactHubInstallParams],
+) (*mcp.CallToolResult, error) {
 	if request.Arguments.PackageID == "" {
 		return result("Error: packageId parameter is required"), nil
 	}
@@ -226,8 +226,8 @@ func handlerInstallArtifactHubTask(
 func handlerInstallArtifactHubPipeline(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	request *mcp.CallToolParamsFor[artifactHubInstallParams],
-) (*mcp.CallToolResultFor[string], error) {
+	request *callToolParamsFor[artifactHubInstallParams],
+) (*mcp.CallToolResult, error) {
 	if request.Arguments.PackageID == "" {
 		return result("Error: packageId parameter is required"), nil
 	}
@@ -292,8 +292,8 @@ func handlerInstallArtifactHubPipeline(
 }
 
 // Helper function to trigger a task run from an installed task
-func triggerArtifactHubTask() *mcp.ServerTool {
-	return mcp.NewServerTool(
+func triggerArtifactHubTask() serverTool {
+	return newServerTool(
 		"trigger_artifacthub_task",
 		"Trigger a Tekton task that was installed from Artifact Hub",
 		handlerTriggerArtifactHubTask,
@@ -301,8 +301,8 @@ func triggerArtifactHubTask() *mcp.ServerTool {
 }
 
 // Helper function to trigger a pipeline run from an installed pipeline
-func triggerArtifactHubPipeline() *mcp.ServerTool {
-	return mcp.NewServerTool(
+func triggerArtifactHubPipeline() serverTool {
+	return newServerTool(
 		"trigger_artifacthub_pipeline",
 		"Trigger a Tekton pipeline that was installed from Artifact Hub",
 		handlerTriggerArtifactHubPipeline,
@@ -311,15 +311,15 @@ func triggerArtifactHubPipeline() *mcp.ServerTool {
 
 type triggerParams struct {
 	Name      string                 `json:"name"`
-	Namespace string                 `json:"namespace"`
-	Params    map[string]interface{} `json:"params"`
+	Namespace string                 `json:"namespace,omitempty"`
+	Params    map[string]interface{} `json:"params,omitempty"`
 }
 
 func handlerTriggerArtifactHubTask(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	request *mcp.CallToolParamsFor[triggerParams],
-) (*mcp.CallToolResultFor[string], error) {
+	request *callToolParamsFor[triggerParams],
+) (*mcp.CallToolResult, error) {
 	if request.Arguments.Name == "" {
 		return result("Error: name parameter is required"), nil
 	}
@@ -366,8 +366,8 @@ func handlerTriggerArtifactHubTask(
 func handlerTriggerArtifactHubPipeline(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	request *mcp.CallToolParamsFor[triggerParams],
-) (*mcp.CallToolResultFor[string], error) {
+	request *callToolParamsFor[triggerParams],
+) (*mcp.CallToolResult, error) {
 	if request.Arguments.Name == "" {
 		return result("Error: name parameter is required"), nil
 	}

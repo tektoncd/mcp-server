@@ -166,7 +166,7 @@ func TestCreateOperationsErrors(t *testing.T) {
 			args: map[string]interface{}{
 				"namespace": "default",
 			},
-			expected: "Error: YAML definition is required",
+			expected: "missing properties: [\"yaml\"]",
 		},
 		{
 			name: "create_pipelinerun_missing_both",
