@@ -49,6 +49,15 @@ Run the same unit-test command used by CI:
 go test -v -race -timeout 5m ./...
 ```
 
+CI also deploys the server and Tekton Pipelines to kind. To run its MCP smoke
+test against an existing deployment:
+
+```shell
+kubectl create namespace mcp-e2e
+MCP_SERVER_URL=http://127.0.0.1:8080 E2E_NAMESPACE=mcp-e2e \
+  go test -v -tags=e2e -timeout=3m ./test/e2e
+```
+
 Before submitting a pull request, also run:
 
 ```shell
