@@ -182,7 +182,7 @@ func TestGetOperationsErrors(t *testing.T) {
 			args: map[string]interface{}{
 				"namespace": "default",
 			},
-			expected: "Error: Task name is required",
+			expected: "missing properties: [\"name\"]",
 		},
 		{
 			name: "get_pipelinerun_not_found",

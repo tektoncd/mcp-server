@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/modelcontextprotocol/go-sdk/jsonschema"
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	pipelineclient "github.com/tektoncd/pipeline/pkg/client/injection/client"
@@ -16,11 +16,11 @@ import (
 
 type startParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
-func startPipeline() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[startParams]()
+func startPipeline() (serverTool, error) {
+	scheme, err := jsonschema.For[startParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -29,19 +29,19 @@ func startPipeline() (*mcp.ServerTool, error) {
 	scheme.Properties["namespace"].Description = "Namespace of the pipeline"
 	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"start_pipeline",
 		"Start a Pipeline",
 		handlerStartPipeline,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerStartPipeline(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[startParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[startParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 
@@ -75,8 +75,8 @@ func handlerStartPipeline(
 	return result(fmt.Sprintf("Starting pipeline %s in namespace %s", name, namespace)), nil
 }
 
-func startTask() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[startParams]()
+func startTask() (serverTool, error) {
+	scheme, err := jsonschema.For[startParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -85,19 +85,19 @@ func startTask() (*mcp.ServerTool, error) {
 	scheme.Properties["namespace"].Description = "Namespace of the task"
 	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"start_task",
 		"Start a Task",
 		handlerStartTask,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerStartTask(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[startParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[startParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 	if namespace == "" {

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/modelcontextprotocol/go-sdk/jsonschema"
+	"github.com/google/jsonschema-go/jsonschema"
 	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	pipelineclient "github.com/tektoncd/pipeline/pkg/client/injection/client"
@@ -14,12 +14,12 @@ import (
 )
 
 type createPipelineParams struct {
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 	Yaml      string `json:"yaml"`
 }
 
-func createPipeline() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[createPipelineParams]()
+func createPipeline() (serverTool, error) {
+	scheme, err := jsonschema.For[createPipelineParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -29,19 +29,19 @@ func createPipeline() (*mcp.ServerTool, error) {
 	scheme.Properties["yaml"].Description = "YAML definition of the Pipeline"
 	scheme.Required = []string{"yaml"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"create_pipeline",
 		"Create a new Pipeline from YAML definition",
 		handlerCreatePipeline,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerCreatePipeline(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[createPipelineParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[createPipelineParams],
+) (*mcp.CallToolResult, error) {
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
 		namespace = defaultNamespace
@@ -67,12 +67,12 @@ func handlerCreatePipeline(
 }
 
 type createTaskParams struct {
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 	Yaml      string `json:"yaml"`
 }
 
-func createTask() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[createTaskParams]()
+func createTask() (serverTool, error) {
+	scheme, err := jsonschema.For[createTaskParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -82,19 +82,19 @@ func createTask() (*mcp.ServerTool, error) {
 	scheme.Properties["yaml"].Description = "YAML definition of the Task"
 	scheme.Required = []string{"yaml"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"create_task",
 		"Create a new Task from YAML definition",
 		handlerCreateTask,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerCreateTask(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[createTaskParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[createTaskParams],
+) (*mcp.CallToolResult, error) {
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
 		namespace = defaultNamespace
@@ -120,13 +120,13 @@ func handlerCreateTask(
 }
 
 type createPipelineRunParams struct {
-	Namespace    string `json:"namespace"`
-	Yaml         string `json:"yaml"`
-	GenerateName string `json:"generateName"`
+	Namespace    string `json:"namespace,omitempty"`
+	Yaml         string `json:"yaml,omitempty"`
+	GenerateName string `json:"generateName,omitempty"`
 }
 
-func createPipelineRun() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[createPipelineRunParams]()
+func createPipelineRun() (serverTool, error) {
+	scheme, err := jsonschema.For[createPipelineRunParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -136,19 +136,19 @@ func createPipelineRun() (*mcp.ServerTool, error) {
 	scheme.Properties["yaml"].Description = "YAML definition of the PipelineRun"
 	scheme.Properties["generateName"].Description = "Generate name prefix for the PipelineRun (alternative to fixed name)"
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"create_pipelinerun",
 		"Create a new PipelineRun from YAML definition or generate from Pipeline",
 		handlerCreatePipelineRun,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerCreatePipelineRun(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[createPipelineRunParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[createPipelineRunParams],
+) (*mcp.CallToolResult, error) {
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
 		namespace = defaultNamespace
@@ -190,13 +190,13 @@ func handlerCreatePipelineRun(
 }
 
 type createTaskRunParams struct {
-	Namespace    string `json:"namespace"`
-	Yaml         string `json:"yaml"`
-	GenerateName string `json:"generateName"`
+	Namespace    string `json:"namespace,omitempty"`
+	Yaml         string `json:"yaml,omitempty"`
+	GenerateName string `json:"generateName,omitempty"`
 }
 
-func createTaskRun() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[createTaskRunParams]()
+func createTaskRun() (serverTool, error) {
+	scheme, err := jsonschema.For[createTaskRunParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -206,19 +206,19 @@ func createTaskRun() (*mcp.ServerTool, error) {
 	scheme.Properties["yaml"].Description = "YAML definition of the TaskRun"
 	scheme.Properties["generateName"].Description = "Generate name prefix for the TaskRun (alternative to fixed name)"
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"create_taskrun",
 		"Create a new TaskRun from YAML definition",
 		handlerCreateTaskRun,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerCreateTaskRun(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[createTaskRunParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[createTaskRunParams],
+) (*mcp.CallToolResult, error) {
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
 		namespace = defaultNamespace

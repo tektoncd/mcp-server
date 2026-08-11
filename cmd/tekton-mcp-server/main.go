@@ -34,7 +34,7 @@ func main() {
 	}
 
 	// Create MCP server
-	s := mcp.NewServer("Tekton", version.Version, nil)
+	s := mcp.NewServer(&mcp.Implementation{Name: "Tekton", Version: version.Version}, nil)
 
 	ctx := signals.NewContext()
 
@@ -87,7 +87,7 @@ func main() {
 		slog.Info("Tekton MCP Server is listening at " + httpAddr)
 	case "stdio":
 		go func() {
-			errC <- s.Run(ctx, mcp.NewStdioTransport())
+			errC <- s.Run(ctx, &mcp.StdioTransport{})
 		}()
 		_, _ = fmt.Fprintf(os.Stderr, "Tekton MCP Server running on stdio\n")
 	default:

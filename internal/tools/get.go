@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/modelcontextprotocol/go-sdk/jsonschema"
+	"github.com/google/jsonschema-go/jsonschema"
 	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	pipelineclient "github.com/tektoncd/pipeline/pkg/client/injection/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,12 +20,12 @@ const (
 
 type getPipelineParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Output    string `json:"output"`
+	Namespace string `json:"namespace,omitempty"`
+	Output    string `json:"output,omitempty"`
 }
 
-func getPipeline() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[getPipelineParams]()
+func getPipeline() (serverTool, error) {
+	scheme, err := jsonschema.For[getPipelineParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -37,19 +37,19 @@ func getPipeline() (*mcp.ServerTool, error) {
 	scheme.Properties["output"].Default = json.RawMessage(`"yaml"`)
 	scheme.Required = []string{"name"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"get_pipeline",
 		"Get a specific Pipeline by name",
 		handlerGetPipeline,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerGetPipeline(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[getPipelineParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[getPipelineParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
@@ -90,12 +90,12 @@ func handlerGetPipeline(
 
 type getTaskParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Output    string `json:"output"`
+	Namespace string `json:"namespace,omitempty"`
+	Output    string `json:"output,omitempty"`
 }
 
-func getTask() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[getTaskParams]()
+func getTask() (serverTool, error) {
+	scheme, err := jsonschema.For[getTaskParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -107,19 +107,19 @@ func getTask() (*mcp.ServerTool, error) {
 	scheme.Properties["output"].Default = json.RawMessage(`"yaml"`)
 	scheme.Required = []string{"name"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"get_task",
 		"Get a specific Task by name",
 		handlerGetTask,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerGetTask(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[getTaskParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[getTaskParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
@@ -160,12 +160,12 @@ func handlerGetTask(
 
 type getPipelineRunParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Output    string `json:"output"`
+	Namespace string `json:"namespace,omitempty"`
+	Output    string `json:"output,omitempty"`
 }
 
-func getPipelineRun() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[getPipelineRunParams]()
+func getPipelineRun() (serverTool, error) {
+	scheme, err := jsonschema.For[getPipelineRunParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -177,19 +177,19 @@ func getPipelineRun() (*mcp.ServerTool, error) {
 	scheme.Properties["output"].Default = json.RawMessage(`"yaml"`)
 	scheme.Required = []string{"name"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"get_pipelinerun",
 		"Get a specific PipelineRun by name",
 		handlerGetPipelineRun,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerGetPipelineRun(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[getPipelineRunParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[getPipelineRunParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 	if namespace == "" {
@@ -230,12 +230,12 @@ func handlerGetPipelineRun(
 
 type getTaskRunParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Output    string `json:"output"`
+	Namespace string `json:"namespace,omitempty"`
+	Output    string `json:"output,omitempty"`
 }
 
-func getTaskRun() (*mcp.ServerTool, error) {
-	scheme, err := jsonschema.For[getTaskRunParams]()
+func getTaskRun() (serverTool, error) {
+	scheme, err := jsonschema.For[getTaskRunParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -247,19 +247,19 @@ func getTaskRun() (*mcp.ServerTool, error) {
 	scheme.Properties["output"].Default = json.RawMessage(`"yaml"`)
 	scheme.Required = []string{"name"}
 
-	return mcp.NewServerTool(
+	return newServerTool(
 		"get_taskrun",
 		"Get a specific TaskRun by name",
 		handlerGetTaskRun,
-		mcp.Input(mcp.Schema(scheme)),
+		scheme,
 	), nil
 }
 
 func handlerGetTaskRun(
 	ctx context.Context,
 	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[getTaskRunParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[getTaskRunParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 	if namespace == "" {

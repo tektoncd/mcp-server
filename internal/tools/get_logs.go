@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/modelcontextprotocol/go-sdk/jsonschema"
+	"github.com/google/jsonschema-go/jsonschema"
 	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	taskruninformer "github.com/tektoncd/pipeline/pkg/client/injection/informers/pipeline/v1/taskrun"
 	v1 "k8s.io/api/core/v1"
@@ -18,11 +18,11 @@ import (
 
 type getLogsParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
-func getTaskRunLogsSchema() (mcp.ToolOption, error) {
-	scheme, err := jsonschema.For[getLogsParams]()
+func getTaskRunLogsSchema() (*jsonschema.Schema, error) {
+	scheme, err := jsonschema.For[getLogsParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -31,15 +31,15 @@ func getTaskRunLogsSchema() (mcp.ToolOption, error) {
 	scheme.Properties["namespace"].Description = "Namespace of the object"
 	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
 
-	return mcp.Input(mcp.Schema(scheme)), nil
+	return scheme, nil
 }
 
-func getTaskRunLogs() (*mcp.ServerTool, error) {
+func getTaskRunLogs() (serverTool, error) {
 	schema, err := getTaskRunLogsSchema()
 	if err != nil {
 		return nil, err
 	}
-	return mcp.NewServerTool(
+	return newServerTool(
 		"get_taskrun_logs",
 		"Get the logs for a given TaskRun",
 		handlerGetTaskRunLogs,
@@ -50,8 +50,8 @@ func getTaskRunLogs() (*mcp.ServerTool, error) {
 func handlerGetTaskRunLogs(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[getLogsParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[getLogsParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 

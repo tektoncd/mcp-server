@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/modelcontextprotocol/go-sdk/jsonschema"
+	"github.com/google/jsonschema-go/jsonschema"
 	mcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	v1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	pipelineclient "github.com/tektoncd/pipeline/pkg/client/injection/client"
@@ -16,11 +16,11 @@ import (
 
 type restartParams struct {
 	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
-func restartSchema() (mcp.ToolOption, error) {
-	scheme, err := jsonschema.For[restartParams]()
+func restartSchema() (*jsonschema.Schema, error) {
+	scheme, err := jsonschema.For[restartParams](nil)
 	if err != nil {
 		return nil, err
 	}
@@ -29,15 +29,15 @@ func restartSchema() (mcp.ToolOption, error) {
 	scheme.Properties["namespace"].Description = "Namespace of the object"
 	scheme.Properties["namespace"].Default = json.RawMessage(`"default"`)
 
-	return mcp.Input(mcp.Schema(scheme)), nil
+	return scheme, nil
 }
 
-func restartPipelineRun() (*mcp.ServerTool, error) {
+func restartPipelineRun() (serverTool, error) {
 	schema, err := restartSchema()
 	if err != nil {
 		return nil, err
 	}
-	return mcp.NewServerTool(
+	return newServerTool(
 		"restart_pipelinerun",
 		"Restart a PipelineRun",
 		handlerRestartPipelineRun,
@@ -48,8 +48,8 @@ func restartPipelineRun() (*mcp.ServerTool, error) {
 func handlerRestartPipelineRun(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[restartParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[restartParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 
@@ -84,12 +84,12 @@ func handlerRestartPipelineRun(
 	return result(fmt.Sprintf("Restarting pipelinerun %s as %s in namespace %s", name, pr.ObjectMeta.Name, namespace)), nil
 }
 
-func restartTaskRun() (*mcp.ServerTool, error) {
+func restartTaskRun() (serverTool, error) {
 	schema, err := restartSchema()
 	if err != nil {
 		return nil, err
 	}
-	return mcp.NewServerTool(
+	return newServerTool(
 		"restart_taskrun",
 		"Restart a TaskRun",
 		handlerRestartTaskRun,
@@ -100,8 +100,8 @@ func restartTaskRun() (*mcp.ServerTool, error) {
 func handlerRestartTaskRun(
 	ctx context.Context,
 	cc *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[restartParams],
-) (*mcp.CallToolResultFor[string], error) {
+	params *callToolParamsFor[restartParams],
+) (*mcp.CallToolResult, error) {
 	name := params.Arguments.Name
 	namespace := params.Arguments.Namespace
 
