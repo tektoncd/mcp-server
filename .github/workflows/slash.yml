@@ -18,6 +18,9 @@
 # When a command is recognised, the rocket and eyes emojis are added
 
 name: Slash Command Routing
+
+permissions: {}
+
 on:
   issue_comment:
     types: [created]
