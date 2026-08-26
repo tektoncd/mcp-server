@@ -1,4 +1,6 @@
 # Tekton Model Context Protocol server
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftektoncd%2Fmcp-server.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftektoncd%2Fmcp-server?ref=badge_shield)
+
 
 Tekton MCP Server exposes Tekton resources to
 [Model Context Protocol (MCP)](https://modelcontextprotocol.io) clients. It
@@ -294,3 +296,7 @@ The MCP server provides integration with [Artifact Hub](https://artifacthub.io) 
 - `name`: Name of the installed pipeline to trigger (string, required)
 - `namespace`: Namespace where the pipeline is located (string, optional, default: "default")
 - `params`: Parameters to pass to the pipeline (object, optional)
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftektoncd%2Fmcp-server.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftektoncd%2Fmcp-server?ref=badge_large)
