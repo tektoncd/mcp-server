@@ -97,7 +97,7 @@ jobs:
       with:
         go-version-file: "go.mod"
     - name: Set up kind
-      uses: chainguard-dev/actions/setup-kind@9d631658f55713e5f63ca0cc21ee168f81301fd9  # v1.6.30
+      uses: chainguard-dev/actions/setup-kind@bed8050123fff65538e2db1902ff9404030c0221  # v1.6.31
       with:
         k8s-version: 1.34.x
         kind-version: 0.32.0
