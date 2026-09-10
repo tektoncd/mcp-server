@@ -11,7 +11,7 @@ rules:
   - apiGroups: ["tekton.dev"]
     resources: ["tasks", "pipelines", "taskruns", "pipelineruns", "stepactions"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  # Access to kubernetes resources
+  # Access to pods for TaskRun logs
   - apiGroups: [""]
-    resources: ["pods", "namespaces", "configmaps", "secrets"]
+    resources: ["pods"]
     verbs: ["get", "list", "watch"]
