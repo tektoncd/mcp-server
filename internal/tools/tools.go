@@ -157,6 +157,28 @@ func Add(_ context.Context, s *mcp.Server) error {
 	triggerArtifactHubTaskTool := triggerArtifactHubTask()
 	triggerArtifactHubPipelineTool := triggerArtifactHubPipeline()
 
+	// List tools
+	listPipelineRunsTool, err := listPipelineRuns()
+	if err != nil {
+		return err
+	}
+	listPipelinesTool, err := listPipelines()
+	if err != nil {
+		return err
+	}
+	listTaskRunsTool, err := listTaskRuns()
+	if err != nil {
+		return err
+	}
+	listTasksTool, err := listTasks()
+	if err != nil {
+		return err
+	}
+	listStepactionsTool, err := listStepactions()
+	if err != nil {
+		return err
+	}
+
 	addTools(s,
 		// Existing tools
 		startPipelineTool,
@@ -164,11 +186,11 @@ func Add(_ context.Context, s *mcp.Server) error {
 		restartPipelineRunTool,
 		restartTaskRunTool,
 		getTaskRunLogsTool,
-		listPipelineRuns(),
-		listPipelines(),
-		listTaskRuns(),
-		listTasks(),
-		listStepactions(),
+		listPipelineRunsTool,
+		listPipelinesTool,
+		listTaskRunsTool,
+		listTasksTool,
+		listStepactionsTool,
 
 		// Create operations
 		createPipelineTool,
