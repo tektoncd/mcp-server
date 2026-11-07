@@ -131,27 +131,32 @@ The project was proposed and accepted in
 #### `list_pipelines` – List Pipelines in the Cluster with Filtering Options
 - `namespace`: Namespace to list Pipelines from (string, required)
 - `prefix`: Name prefix to filter Pipelines (string, optional)
-- `label-selector`: Label selector to filter Pipelines (string, optional)
+- `labelSelector`: Label selector to filter Pipelines (string, optional)
+- `output`: `full` returns the complete objects, `summary` returns name, namespace, creation time and, for runs, status, reason, start/completion time and the referenced Pipeline or Task (string, optional, default: "full")
 
 #### `list_pipelineruns` – List PipelineRuns in the Cluster with Filtering Options
 - `namespace`: Namespace to list PipelineRuns from (string, required)
 - `prefix`: Name prefix to filter PipelineRuns (string, optional)
-- `label-selector`: Label selector to filter PipelineRuns (string, optional)
+- `labelSelector`: Label selector to filter PipelineRuns (string, optional)
+- `output`: `full` returns the complete objects, `summary` returns name, namespace, creation time and, for runs, status, reason, start/completion time and the referenced Pipeline or Task (string, optional, default: "full")
 
 #### `list_tasks` – List Tasks in the Cluster with Filtering Options
 - `namespace`: Namespace to list Tasks from (string, required)
 - `prefix`: Name prefix to filter Tasks (string, optional)
-- `label-selector`: Label selector to filter Tasks (string, optional)
+- `labelSelector`: Label selector to filter Tasks (string, optional)
+- `output`: `full` returns the complete objects, `summary` returns name, namespace, creation time and, for runs, status, reason, start/completion time and the referenced Pipeline or Task (string, optional, default: "full")
 
 #### `list_taskruns` – List TaskRuns in the Cluster with Filtering Options
 - `namespace`: Namespace to list TaskRuns from (string, required)
 - `prefix`: Name prefix to filter TaskRuns (string, optional)
-- `label-selector`: Label selector to filter TaskRuns (string, optional)
+- `labelSelector`: Label selector to filter TaskRuns (string, optional)
+- `output`: `full` returns the complete objects, `summary` returns name, namespace, creation time and, for runs, status, reason, start/completion time and the referenced Pipeline or Task (string, optional, default: "full")
 
 #### `list_stepactions` – List Step Actions in the Cluster with Filtering Options
 - `namespace`: Namespace to list Step Actions from (string, required)
 - `prefix`: Name prefix to filter Step Actions (string, optional)
-- `label-selector`: Label selector to filter Step Actions (string, optional)
+- `labelSelector`: Label selector to filter Step Actions (string, optional)
+- `output`: `full` returns the complete objects, `summary` returns name, namespace, creation time and, for runs, status, reason, start/completion time and the referenced Pipeline or Task (string, optional, default: "full")
 
 ### Create Operations
 
